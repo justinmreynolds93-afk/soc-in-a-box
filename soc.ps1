@@ -53,8 +53,13 @@ SOC-in-a-Box tasks
     'restart'        { dc ($Core + @('down')); dc ($Core + @('up', '-d')) }
     'status'         { dc @('-p', $Project, 'ps') }
     'logs'           { dc ($Core + @('logs', '-f', '--tail=100')) }
-    'telemetry'      { dc ($Tele + @('up', '-d')) }
-    'telemetry-down' { dc ($Tele + @('stop', 'suricata', 'linux-victim')) }
+    'telemetry'      {
+        if (-not (Select-String -Path .env -Pattern '^LINUX_ENROLLMENT_TOKEN=.+' -Quiet)) {
+            & pwsh -NoProfile -File "$PSScriptRoot/scripts/setup-fleet.ps1"
+        }
+        dc ($Tele + @('up', '-d', '--build'))
+    }
+    'telemetry-down' { dc ($Tele + @('stop', 'linux-victim')) }
     'attack'         { dc ($Atk + @('up', '-d')) }
     'attack-down'    { dc ($Atk + @('stop', 'caldera', 'attacker')) }
     'soar'           { dc ($Soar + @('up', '-d')) }

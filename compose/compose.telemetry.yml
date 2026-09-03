@@ -1,0 +1,38 @@
+name: soc-in-a-box
+
+# ─────────────────────────────────────────────────────────────────────────────
+# telemetry overlay — endpoints the SOC watches.
+#   linux-victim   Ubuntu + SSH + Fleet-managed Elastic Agent (system + netflow)
+# Run with:  make telemetry   |   .\soc.ps1 telemetry
+# Requires LINUX_ENROLLMENT_TOKEN in .env  ->  scripts/setup-fleet.ps1
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  linux-victim:
+    build:
+      context: ./victim-linux
+      args:
+        STACK_VERSION: ${STACK_VERSION}
+    image: soc-in-a-box/linux-victim:${STACK_VERSION}
+    hostname: linux-victim
+    depends_on:
+      fleet-server:
+        condition: service_healthy
+    environment:
+      - FLEET_ENROLL=1
+      - FLEET_URL=https://fleet-server:8220
+      - FLEET_ENROLLMENT_TOKEN=${LINUX_ENROLLMENT_TOKEN}
+      - FLEET_CA=/certs/ca/ca.crt
+    volumes:
+      - certs:/certs:ro
+      - linuxvictimdata:/usr/share/elastic-agent/state
+    cap_add:
+      - AUDIT_CONTROL
+      - AUDIT_READ
+      - NET_RAW            # network_traffic packet capture
+    mem_limit: 1610612736  # 1.5 GB
+    ports:
+      - "2222:22"          # ssh from the host, for manual poking
+
+volumes:
+  linuxvictimdata:

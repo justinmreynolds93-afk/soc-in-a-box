@@ -138,7 +138,7 @@ soc-in-a-box/
 
 - [x] **M0** — Repo scaffold, docs skeleton, architecture diagram
 - [x] **M1** — Elastic core up via one command (TLS on, Fleet Server running)
-- [ ] **M2** — Telemetry: Sysmon + Windows/Linux agents + Suricata; curated prebuilt rules
+- [x] **M2** — Telemetry: Linux victim + Elastic Agent (system/network), Fleet policies as code, ~90 curated prebuilt rules
 - [ ] **M3** — Adversary emulation: Atomic Red Team + Caldera + scripted kill chains; detection-gap list
 - [ ] **M4** — 15–20 custom detections + Sigma pipeline + ATT&CK Navigator layer + writeups
 - [ ] **M5** — Detection CI: rule validation + event-replay regression harness + coverage badge

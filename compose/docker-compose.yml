@@ -2,11 +2,14 @@ name: soc-in-a-box
 
 # ─────────────────────────────────────────────────────────────────────────────
 # core profile — the SIEM itself.
-#   setup           one-shot: CA + certs + kibana_system password
 #   sysctl          one-shot: raise vm.max_map_count for Elasticsearch
+#   setup           one-shot: CA + service certificates
 #   elasticsearch   single node, security + TLS on
+#   configure       one-shot: set the kibana_system password
 #   kibana          Elastic Security UI, HTTPS
-#   fleet-server    agent control plane (agents enroll here in M2)
+#   fleet-server    agent control plane; agents enroll here
+# One-shots use `service_completed_successfully` downstream (never
+# `service_healthy`) so a re-`up` after they have exited does not wedge.
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
@@ -25,15 +28,7 @@ services:
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
       - ./config/setup.sh:/setup.sh:ro
-    environment:
-      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
-      KIBANA_PASSWORD: ${KIBANA_PASSWORD}
     command: ["bash", "/setup.sh"]
-    healthcheck:
-      test: ["CMD-SHELL", "[ -f /usr/share/elasticsearch/config/certs/elasticsearch/elasticsearch.crt ]"]
-      interval: 2s
-      timeout: 5s
-      retries: 150
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
@@ -41,7 +36,7 @@ services:
       sysctl:
         condition: service_completed_successfully
       setup:
-        condition: service_healthy
+        condition: service_completed_successfully
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
       - esdata:/usr/share/elasticsearch/data
@@ -79,11 +74,27 @@ services:
       timeout: 10s
       retries: 120
 
+  configure:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    user: "0"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs
+      - ./config/configure.sh:/configure.sh:ro
+    environment:
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+      KIBANA_PASSWORD: ${KIBANA_PASSWORD}
+    command: ["bash", "/configure.sh"]
+
   kibana:
     image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
     depends_on:
       elasticsearch:
         condition: service_healthy
+      configure:
+        condition: service_completed_successfully
     volumes:
       - certs:/usr/share/kibana/config/certs
       - kibanadata:/usr/share/kibana/data
@@ -141,6 +152,7 @@ services:
       - KIBANA_FLEET_USERNAME=elastic
       - KIBANA_FLEET_PASSWORD=${ELASTIC_PASSWORD}
       - KIBANA_FLEET_CA=/certs/ca/ca.crt
+    mem_limit: 1073741824  # 1 GB
     healthcheck:
       test: ["CMD-SHELL", "curl -s -k https://localhost:8220/api/status | grep -q HEALTHY"]
       interval: 15s

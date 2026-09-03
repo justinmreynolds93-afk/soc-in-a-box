@@ -26,6 +26,10 @@ xpack.fleet.packages:
     version: latest
   - name: elastic_agent
     version: latest
+  - name: windows
+    version: latest
+  - name: network_traffic
+    version: latest
 
 xpack.fleet.agentPolicies:
   - name: Fleet Server Policy
@@ -49,3 +53,31 @@ xpack.fleet.agentPolicies:
               - name: port
                 value: 8220
                 frozen: true
+
+  - name: Linux Victim Policy
+    id: linux-victim-policy
+    namespace: default
+    monitoring_enabled:
+      - logs
+      - metrics
+    package_policies:
+      - name: system-linux
+        package:
+          name: system
+      - name: network-traffic-linux
+        package:
+          name: network_traffic
+
+  - name: Windows Victim Policy
+    id: windows-victim-policy
+    namespace: default
+    monitoring_enabled:
+      - logs
+      - metrics
+    package_policies:
+      - name: system-windows
+        package:
+          name: system
+      - name: windows-events
+        package:
+          name: windows

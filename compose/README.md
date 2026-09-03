@@ -6,8 +6,8 @@ them with repeated `-f` flags).
 
 | File | Adds | Services | Status |
 |---|---|---|---|
-| `docker-compose.yml` | core | `sysctl`, `setup`, `elasticsearch`, `kibana`, `fleet-server` | ✅ M1 |
-| `compose.telemetry.yml` | telemetry | `suricata`, `linux-victim` | M2 |
+| `docker-compose.yml` | core | `sysctl`, `setup`, `elasticsearch`, `configure`, `kibana`, `fleet-server` | ✅ M1 |
+| `compose.telemetry.yml` | telemetry | `linux-victim` (Ubuntu + SSH + Elastic Agent) | ✅ M2 |
 | `compose.attack.yml` | attack | `caldera`, `attacker` | M3 |
 | `compose.soar.yml` | soar | `n8n` | M6 |
 | `compose.casemgmt.yml` | casemgmt | `thehive`, `cortex` | M6 (optional) |

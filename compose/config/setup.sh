@@ -1,18 +1,11 @@
 #!/usr/bin/env bash
-# One-shot bootstrap for the Elastic core:
-#   1. generate a private CA
-#   2. issue PEM certs for elasticsearch, kibana, and fleet-server
-#   3. wait for Elasticsearch, then set the kibana_system password
-# Idempotent — safe to re-run; existing certs are kept.
+# One-shot: generate a private CA and PEM certs for elasticsearch, kibana, and
+# fleet-server. Idempotent — existing certs are kept. Exits 0 quickly; nothing
+# downstream waits on this being "healthy", only on it completing.
 set -eu
 
 CERTS=config/certs
 cd /usr/share/elasticsearch
-
-if [ -z "${ELASTIC_PASSWORD:-}" ] || [ -z "${KIBANA_PASSWORD:-}" ]; then
-  echo "FATAL: ELASTIC_PASSWORD and KIBANA_PASSWORD must be set (see .env)"
-  exit 1
-fi
 
 if [ ! -f "${CERTS}/ca/ca.crt" ]; then
   echo "== creating CA"
@@ -45,17 +38,4 @@ chown -R 1000:0 "${CERTS}"
 find "${CERTS}" -type d -exec chmod 750 {} \;
 find "${CERTS}" -type f -exec chmod 640 {} \;
 
-echo "== waiting for Elasticsearch to respond"
-until curl -s --cacert "${CERTS}/ca/ca.crt" https://elasticsearch:9200 | grep -q "missing authentication credentials"; do
-  sleep 5
-done
-
-echo "== setting the kibana_system password"
-until curl -s -X POST --cacert "${CERTS}/ca/ca.crt" \
-  -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" \
-  "https://elasticsearch:9200/_security/user/kibana_system/_password" \
-  -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do
-  sleep 5
-done
-
-echo "== setup complete"
+echo "== certs ready"

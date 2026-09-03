@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — M2 (telemetry)
+- `compose/compose.telemetry.yml` + `compose/victim-linux/`: an Ubuntu victim
+  container (SSH, rsyslog) running a Fleet-managed Elastic Agent — System logs,
+  System metrics, and Network Packet Capture
+- `compose/config/kibana.yml`: Linux/Windows victim agent policies as code;
+  default Fleet output pointed at the container
+- `scripts/setup-fleet.ps1`: fetches per-policy enrollment tokens into `.env`
+- `scripts/enable-detection-rules.ps1`: installs the 1.9k prebuilt rules, enables
+  a curated ~90 (Linux / Network / Windows tags) sized for an 8 GB host
+- `scripts/healthcheck.ps1`: now also reports rule count + data-stream count
+- `vm/provision/*.ps1`: Windows victim provisioning (audit policy, Sysmon,
+  agent enroll, Atomic Red Team) — run on a VirtualBox VM or the host
+- Refactored core one-shots: `setup` (certs) + `configure` (kibana_system
+  password) as separate steps so a re-`up` never wedges on a stopped one-shot
+
+### Verified
+- 2 agents online, 29 data streams, real failed-SSH logins parsed to ECS in
+  `logs-system.auth-default`
+
 ### Added — M1 (Elastic core)
 - `compose/docker-compose.yml`: `sysctl` + `setup` one-shots, single-node
   Elasticsearch (security + TLS), Kibana (HTTPS), Fleet Server

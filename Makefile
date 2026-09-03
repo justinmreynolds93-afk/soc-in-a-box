@@ -32,11 +32,12 @@ status: ## Show every lab container
 logs: ## Tail core logs
 	$(COMPOSE) $(CORE) logs -f --tail=100
 
-telemetry: ## Add Suricata + the Linux victim
-	$(COMPOSE) $(TELE) up -d
+telemetry: ## Add the Linux victim (+ fetch its enrollment token)
+	@grep -qE '^LINUX_ENROLLMENT_TOKEN=.+' .env || pwsh -NoProfile -File scripts/setup-fleet.ps1
+	$(COMPOSE) $(TELE) up -d --build
 
 telemetry-down: ## Remove telemetry services
-	$(COMPOSE) $(TELE) stop suricata linux-victim
+	$(COMPOSE) $(TELE) stop linux-victim
 
 attack: ## Spin up Caldera + attacker (on demand)
 	$(COMPOSE) $(ATK) up -d
