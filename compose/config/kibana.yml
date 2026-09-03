@@ -1,0 +1,51 @@
+# Kibana config mounted into the container. Elasticsearch connection, TLS, and
+# encryption keys come from environment variables in docker-compose.yml; this
+# file carries the Fleet preconfiguration that must exist before Fleet Server
+# can start and enroll agents.
+server.host: "0.0.0.0"
+server.publicBaseUrl: "https://localhost:5601"
+
+telemetry.optIn: false
+
+# Where Fleet-managed agents ship data. Points at the container, not localhost.
+# Container agents all mount the lab CA at /certs/ca/ca.crt.
+xpack.fleet.outputs:
+  - name: default
+    id: fleet-default-output
+    type: elasticsearch
+    hosts: ["https://elasticsearch:9200"]
+    is_default: true
+    is_default_monitoring: true
+    ssl:
+      certificate_authorities: ["/certs/ca/ca.crt"]
+
+xpack.fleet.packages:
+  - name: fleet_server
+    version: latest
+  - name: system
+    version: latest
+  - name: elastic_agent
+    version: latest
+
+xpack.fleet.agentPolicies:
+  - name: Fleet Server Policy
+    id: fleet-server-policy
+    namespace: default
+    is_managed: false
+    monitoring_enabled:
+      - logs
+      - metrics
+    package_policies:
+      - name: fleet_server-1
+        package:
+          name: fleet_server
+        inputs:
+          - type: fleet-server
+            keep_enabled: true
+            vars:
+              - name: host
+                value: 0.0.0.0
+                frozen: true
+              - name: port
+                value: 8220
+                frozen: true

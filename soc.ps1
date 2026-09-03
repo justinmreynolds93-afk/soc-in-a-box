@@ -25,7 +25,7 @@ $Atk  = $Core + @('-f', 'compose/compose.attack.yml')
 $Soar = $Core + @('-f', 'compose/compose.soar.yml')
 $Case = $Core + @('-f', 'compose/compose.casemgmt.yml')
 
-function dc { param([string[]]$DcArgs) & docker compose @DcArgs }
+function dc { param([string[]]$DcArgs) & docker compose --env-file .env @DcArgs }
 
 switch ($Task) {
     'help' {

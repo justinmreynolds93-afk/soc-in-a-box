@@ -1,0 +1,158 @@
+name: soc-in-a-box
+
+# ─────────────────────────────────────────────────────────────────────────────
+# core profile — the SIEM itself.
+#   setup           one-shot: CA + certs + kibana_system password
+#   sysctl          one-shot: raise vm.max_map_count for Elasticsearch
+#   elasticsearch   single node, security + TLS on
+#   kibana          Elastic Security UI, HTTPS
+#   fleet-server    agent control plane (agents enroll here in M2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  sysctl:
+    image: busybox:1.37
+    # Docker Desktop already ships this value; the "|| true" keeps the lab
+    # portable to hosts where it is low without failing on locked-down daemons.
+    command: ["sh", "-c", "sysctl -w vm.max_map_count=262144 || true"]
+    privileged: true
+    restart: "no"
+    network_mode: none
+
+  setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    user: "0"
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs
+      - ./config/setup.sh:/setup.sh:ro
+    environment:
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+      KIBANA_PASSWORD: ${KIBANA_PASSWORD}
+    command: ["bash", "/setup.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /usr/share/elasticsearch/config/certs/elasticsearch/elasticsearch.crt ]"]
+      interval: 2s
+      timeout: 5s
+      retries: 150
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    depends_on:
+      sysctl:
+        condition: service_completed_successfully
+      setup:
+        condition: service_healthy
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - ${ES_PORT}:9200
+    environment:
+      - node.name=elasticsearch
+      - cluster.name=${CLUSTER_NAME}
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/elasticsearch/elasticsearch.key
+      - xpack.security.http.ssl.certificate=certs/elasticsearch/elasticsearch.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/elasticsearch/elasticsearch.key
+      - xpack.security.transport.ssl.certificate=certs/elasticsearch/elasticsearch.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.license.self_generated.type=${LICENSE}
+      - xpack.ml.enabled=false
+      - ES_JAVA_OPTS=${ES_JAVA_OPTS}
+    mem_limit: ${ES_MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test:
+        ["CMD-SHELL",
+         "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    volumes:
+      - certs:/usr/share/kibana/config/certs
+      - kibanadata:/usr/share/kibana/data
+      - ./config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    ports:
+      - ${KIBANA_PORT}:5601
+    environment:
+      - SERVERNAME=kibana
+      - ELASTICSEARCH_HOSTS=https://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
+      - SERVER_SSL_ENABLED=true
+      - SERVER_SSL_CERTIFICATE=config/certs/kibana/kibana.crt
+      - SERVER_SSL_KEY=config/certs/kibana/kibana.key
+      - XPACK_SECURITY_ENCRYPTIONKEY=${ENCRYPTION_KEY}
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${ENCRYPTION_KEY}
+      - XPACK_REPORTING_ENCRYPTIONKEY=${ENCRYPTION_KEY}
+      - XPACK_FLEET_AGENTS_FLEET_SERVER_HOSTS=["https://fleet-server:8220"]
+    mem_limit: ${KIBANA_MEM_LIMIT}
+    healthcheck:
+      test:
+        ["CMD-SHELL",
+         "curl -s -k https://localhost:5601/api/status | grep -q '\"level\":\"available\"'"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  fleet-server:
+    image: docker.elastic.co/elastic-agent/elastic-agent:${STACK_VERSION}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    volumes:
+      - certs:/certs:ro
+      - fleetdata:/usr/share/elastic-agent
+    ports:
+      - ${FLEET_SERVER_PORT}:8220
+    environment:
+      - FLEET_SERVER_ENABLE=1
+      - FLEET_ENROLL=1
+      - FLEET_SERVER_ELASTICSEARCH_HOST=https://elasticsearch:9200
+      - FLEET_SERVER_ELASTICSEARCH_CA=/certs/ca/ca.crt
+      - FLEET_SERVER_ELASTICSEARCH_USERNAME=elastic
+      - FLEET_SERVER_ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+      - FLEET_SERVER_CERT=/certs/fleet-server/fleet-server.crt
+      - FLEET_SERVER_CERT_KEY=/certs/fleet-server/fleet-server.key
+      - FLEET_SERVER_POLICY_ID=fleet-server-policy
+      - FLEET_URL=https://fleet-server:8220
+      - FLEET_CA=/certs/ca/ca.crt
+      - KIBANA_FLEET_SETUP=1
+      - KIBANA_HOST=https://kibana:5601
+      - KIBANA_FLEET_USERNAME=elastic
+      - KIBANA_FLEET_PASSWORD=${ELASTIC_PASSWORD}
+      - KIBANA_FLEET_CA=/certs/ca/ca.crt
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -k https://localhost:8220/api/status | grep -q HEALTHY"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+
+volumes:
+  certs:
+  esdata:
+  kibanadata:
+  fleetdata:
+
+networks:
+  default:
+    name: soc-net

@@ -1,7 +1,7 @@
 # SOC-in-a-Box task runner.
 # Windows without `make`: use  .\soc.ps1 <verb>  (same verbs), or call docker compose directly.
 
-COMPOSE := docker compose
+COMPOSE := docker compose --env-file .env
 PROJECT := soc-in-a-box
 
 CORE := -f compose/docker-compose.yml
