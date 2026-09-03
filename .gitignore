@@ -1,0 +1,36 @@
+# secrets & local config
+.env
+*.env
+!.env.example
+
+# runtime data / generated artifacts
+data/
+certs/
+*.crt
+*.key
+*.p12
+*.pem
+logs/
+*.log
+
+# vagrant / VM images
+vm/.vagrant/
+*.box
+*.ova
+
+# n8n local state
+soar/n8n/.n8n/
+
+# python tooling (detection-rules, sigma)
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
