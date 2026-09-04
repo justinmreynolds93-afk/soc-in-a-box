@@ -7,11 +7,12 @@ server.publicBaseUrl: "https://localhost:5601"
 
 telemetry.optIn: false
 
-# Where Fleet-managed agents ship data. host.docker.internal:9200 resolves from
-# BOTH the containers (Docker Desktop injects it) and the Docker host, so one
-# output serves the container victims and a host agent (the Windows victim = this
-# machine). Per-policy outputs need Platinum, so this is the single default.
-# TLS verification is off: the lab cert has no SAN for host.docker.internal.
+# One host name, reachable from everywhere: Docker Desktop resolves
+# host.docker.internal from inside the containers AND from the Windows host, and
+# the lab certs now carry it as a SAN (see compose/config/setup.sh). So a single
+# default output + a single Fleet Server host serve the container victims and a
+# host-installed agent (the Windows victim = this machine) with full TLS.
+# Per-policy outputs would need Platinum; this avoids needing them.
 xpack.fleet.outputs:
   - name: default
     id: fleet-default-output
@@ -20,12 +21,9 @@ xpack.fleet.outputs:
     is_default: true
     is_default_monitoring: true
     ssl:
-      verification_mode: none
+      certificate_authorities: ["/certs/ca/ca.crt"]
 
-# Fleet Server is reachable from containers as fleet-server:8220 and from the
-# Docker host as host.docker.internal:8220.
 xpack.fleet.agents.fleet_server.hosts:
-  - "https://fleet-server:8220"
   - "https://host.docker.internal:8220"
 
 xpack.fleet.packages:

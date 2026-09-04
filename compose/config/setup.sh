@@ -18,13 +18,13 @@ if [ ! -f "${CERTS}/elasticsearch/elasticsearch.crt" ]; then
   cat > "${CERTS}/instances.yml" <<'YAML'
 instances:
   - name: elasticsearch
-    dns: [elasticsearch, localhost]
+    dns: [elasticsearch, host.docker.internal, localhost]
     ip: [127.0.0.1]
   - name: kibana
-    dns: [kibana, localhost]
+    dns: [kibana, host.docker.internal, localhost]
     ip: [127.0.0.1]
   - name: fleet-server
-    dns: [fleet-server, localhost]
+    dns: [fleet-server, host.docker.internal, localhost]
     ip: [127.0.0.1]
 YAML
   bin/elasticsearch-certutil cert --silent --pem \
