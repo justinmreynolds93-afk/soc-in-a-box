@@ -21,7 +21,11 @@ xpack.fleet.outputs:
     is_default: true
     is_default_monitoring: true
     ssl:
-      certificate_authorities: ["/certs/ca/ca.crt"]
+      # A path here is a *container* path — a host-installed agent (Windows
+      # victim) has no /certs. Skip verification: traffic is still TLS-encrypted
+      # and stays on the loopback, and the Fleet enrollment is --insecure too.
+      # Lab simplification; a real deployment ships the CA to every agent.
+      verification_mode: none
 
 xpack.fleet.agents.fleet_server.hosts:
   - "https://host.docker.internal:8220"

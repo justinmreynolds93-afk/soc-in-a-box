@@ -69,15 +69,45 @@ victim rather than a container.
 | `soc-linux-root-login-accepted` | query | `logs-system.auth-*` | T1078.003 |
 | `soc-network-external-beaconing` | threshold | `logs-network_traffic.flow-*` | T1071.001 |
 | `soc-network-dns-high-unique-subdomains` | threshold | `logs-network_traffic.dns-*` | T1071.004 / T1568 |
-| `soc-win-powershell-encoded-command` | query | `logs-windows.sysmon_operational-*` | T1059.001 |
-| `soc-win-clear-event-logs` | query | `logs-system.security-*` | T1070.001 |
-| `soc-win-new-local-admin` | query | `logs-system.security-*` | T1136.001 / T1098 |
+| `soc-win-powershell-encoded-command` | query | `logs-windows.sysmon_operational-*`, `logs-windows.powershell*` | T1059.001 |
+| `soc-win-clear-event-logs` | query | `logs-system.security-*`, `logs-windows.sysmon_operational-*` | T1070.001 |
+| `soc-win-new-local-admin` | query | `logs-system.security-*`, `logs-windows.sysmon_operational-*` | T1136.001 / T1098 |
 | `soc-win-defender-tampering` | query | `logs-windows.sysmon_operational-*` | T1562.001 |
 | `soc-win-lsass-credential-access` | query | `logs-windows.sysmon_operational-*` | T1003.001 |
 
-## Windows victim: enrolled, telemetry gated by host RAM
+All 13 execute `succeeded` against live telemetry (the Windows five after a KQL
+rewrite — see below).
 
-The Windows path was taken as far as this hardware allows:
+## Windows victim: live
+
+> **Update — Windows telemetry is flowing.** The host agent's collectors were
+> failing on a container CA path in the Fleet output (`/certs/ca/ca.crt`, which a
+> host-installed agent has no access to); switching the output to
+> `verification_mode: none` fixed it. Sysmon, Security, System, and service logs
+> now land in `logs-windows.*` / `logs-system.*` — ~10k docs / 5 min,
+> ~2.5k Sysmon events / 10 min.
+>
+> **All 5 custom Windows rules were broken.** Validated against real telemetry
+> for the first time, every one failed on invalid KQL — quoted-substring
+> wildcards (`*"cl "*`), an unescaped `(` in `*IEX(*`. Rewritten with
+> `process.args` for subcommands and single-token wildcards; **all 5 now execute
+> `succeeded`**. This is the case for running detections against live data before
+> claiming coverage.
+>
+> **Rule health across the enabled set:** 245 succeeded / 11 partial / 0 failed
+> (256 enabled). Was 184 / 67 / 10 on Linux-only telemetry. The 11 "partial" are
+> prebuilt rules that also query EDR indices (`logs-endpoint.events.*`) we don't
+> have; they run on the Sysmon/Security data they can see. `enable-detection-rules.ps1`
+> disables prebuilt ES|QL rules that hard-fail on fields our telemetry lacks.
+>
+> **Not done — attack validation.** `docs/scope.md` forbids running attack
+> tooling against this host (it's the author's daily driver). The Windows rules
+> are proven to *execute* against live data, not proven to *alert* — that needs
+> the VirtualBox victim VM (`vm/`) so techniques can be fired safely.
+
+### Original constraint (the RAM story still stands)
+
+The Windows path also hit the memory wall this project is built around:
 
 - **Done:** `scripts/install-windows-telemetry.ps1` installs Sysmon (Olaf Hartong
   config) + the audit subcategories the rules need + PowerShell script-block
@@ -88,18 +118,13 @@ The Windows path was taken as far as this hardware allows:
   now issues its certs with `host.docker.internal` in the SAN and uses that one
   name for the Fleet output and the single Fleet Server host — reachable from
   both the containers and the host, with full TLS.
-- **The wall:** the agent's collectors (filebeat/metricbeat) need ~400 MB, and
-  this 16 GB machine — running the Docker stack, the WSL2 VM, Windows, Defender,
-  and a browser — has ~1.7 GB available with **core only** up. The agent
-  supervisor stays connected; its beats can't hold memory, so Windows datasets
-  don't populate and the 5 Windows rules stay in "partial failure".
+- **The squeeze:** the agent's collectors need ~400 MB. On this 16 GB machine —
+  Docker stack + WSL2 VM + Windows + Defender + browser + the editor this was
+  built in — that left almost nothing. What it took to get telemetry flowing:
+  cap the WSL2 VM (`~/.wslconfig`, see `docs/wslconfig.example`), drop ES heap to
+  1 GB, run **core only** (`telemetry` and `soar` profiles stopped), and close
+  the browser during validation.
 
-This is the project's thesis landing on its own author: **you cannot run
-everything at once on 16 GB.** To validate the Windows rules against live data,
-run *only* `core` + the host agent (stop `telemetry` and `soar`), cap the WSL2 VM
-(`~/.wslconfig`, see `docs/wslconfig.example`), and free host RAM (close the
-browser). Then the beats start, Sysmon/Security/System land in
-`logs-windows.*` / `logs-system.security-*`, and the rules fire.
-
-The rules themselves are deployed and enabled now (261 rules live) — they begin
-evaluating the moment the data streams appear.
+**You cannot run everything at once on 16 GB** — which is exactly why the lab is
+split into profiles. A Windows-detection session is `core` + the host agent,
+nothing else.

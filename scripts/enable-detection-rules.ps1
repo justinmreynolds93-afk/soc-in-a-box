@@ -85,6 +85,26 @@ function Bulk($action, $ids) {
 if ($disable.Count) { Bulk 'disable' $disable }
 if ($enable.Count)  { Bulk 'enable'  $enable }
 
+# Second pass: after a few runs, disable any prebuilt still hard-failing on a
+# missing field (ES|QL rules referencing columns our telemetry does not produce).
+Start-Sleep 45
+$stillFailing = @()
+$page = 1
+do {
+    $resp = Invoke-RestMethod "$kb/api/detection_engine/rules/_find?per_page=200&page=$page&filter=alert.attributes.enabled:true" -Headers $h -SkipCertificateCheck
+    foreach ($r in $resp.data) {
+        if ($r.immutable -eq $true -and $r.execution_summary.last_execution.status -eq 'failed' `
+            -and $r.execution_summary.last_execution.message -match 'verification_exception|Unknown column') {
+            $stillFailing += $r.id
+        }
+    }
+    $page++
+} while ($resp.data.Count -eq 200)
+if ($stillFailing.Count) {
+    Write-Host "[*] disabling $($stillFailing.Count) prebuilt rules that fail on missing fields"
+    Bulk 'disable' $stillFailing
+}
+
 Start-Sleep 3
 $en = (Invoke-RestMethod "$kb/api/detection_engine/rules/_find?per_page=1&filter=alert.attributes.enabled:true" -Headers $h -SkipCertificateCheck).total
 Write-Host "[+] enabled detection rules now: $en"
