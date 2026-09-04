@@ -7,10 +7,15 @@ with every rule, playbook, and dashboard version-controlled and CI-tested.
 
 Built to run on a single 16 GB workstation.
 
-<!-- Badges are wired up in M5. -->
-![CI](https://img.shields.io/badge/CI-pending-lightgrey)
-![ATT&CK coverage](https://img.shields.io/badge/ATT%26CK%20coverage-M4-lightgrey)
+![CI](https://img.shields.io/badge/detection--ci-passing-brightgreen)
+![ATT&CK coverage](https://img.shields.io/badge/scenario%20coverage-5%2F11%20(45%25)-yellow)
+![rules](https://img.shields.io/badge/custom%20rules-13-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
+
+> **Status:** `v0.1` — M0–M7 built and running. Linux telemetry + custom
+> detections + SOAR + CI are verified end-to-end. The Windows victim ships as
+> ready-to-run provisioning (`vm/`); screenshots and a `v1.0` tag are the
+> remaining polish.
 
 ---
 
@@ -18,46 +23,44 @@ Built to run on a single 16 GB workstation.
 
 | Capability | Where it lives |
 |---|---|
-| SIEM deployment as infrastructure-as-code | `compose/` |
-| Endpoint + network telemetry pipelines | `compose/`, `elastic/fleet/` |
-| Detection engineering with Elastic's `detection-rules` workflow | `elastic/detection-rules/` |
-| Sigma authoring and conversion | `elastic/sigma/` |
-| MITRE ATT&CK coverage mapping | `docs/detection-coverage.md` (M4) |
-| Adversary emulation (Atomic Red Team, MITRE Caldera) | `attack/` |
-| Detection regression testing in CI | `.github/workflows/` |
-| SOAR / automated response | `soar/` |
+| SIEM deployment as infrastructure-as-code (TLS, Fleet, one command) | `compose/` |
+| Endpoint + network telemetry via Fleet-managed Elastic Agent | `compose/victim-linux/`, `compose/config/kibana.yml` |
+| Detection-as-code — 13 rules, one file each, MITRE-mapped, with writeups | `elastic/detection-rules/`, `docs/detections/` |
+| Portable Sigma rules + CI conversion to Elastic | `elastic/sigma/` |
+| **Honest coverage analysis** — what the telemetry can and can't catch | `docs/detection-coverage.md` |
+| Adversary emulation — scripted kill chains, Atomic Red Team, Caldera | `attack/` |
+| Detection CI — schema + ATT&CK-mapping validation, Sigma convert | `.github/workflows/detection-ci.yml` |
+| SOAR — enrich → Slack → Kibana case | `soar/n8n/` |
 | Incident-response runbooks | `docs/runbooks/` |
 
 ## Architecture
 
-Full diagram and data flow: [docs/architecture.md](docs/architecture.md).
+Full diagram, data flow, and design decisions: [docs/architecture.md](docs/architecture.md).
 
 ```mermaid
 flowchart LR
     subgraph endpoints[Instrumented hosts]
-        WH[Windows host / VM<br/>Elastic Agent + Sysmon]
-        LV[Linux victim<br/>Elastic Agent + auditd]
+        LV["Linux victim (container)<br/>Elastic Agent · auth/syslog · netflow"]
+        WV["Windows victim (VirtualBox)<br/>Elastic Agent · Sysmon · event logs"]
     end
-    subgraph core[core profile]
+    subgraph core["core (compose)"]
         FS[Fleet Server]
-        ES[(Elasticsearch)]
+        ES[(Elasticsearch<br/>single-node · TLS)]
         KB[Kibana / Elastic Security]
     end
-    SUR[Suricata<br/>network IDS]
     subgraph resp[response]
         N8N[n8n SOAR]
         CASE[Kibana Cases]
     end
-    ATK[Atomic Red Team<br/>+ MITRE Caldera]
+    ATK["attack/<br/>scripted kill chains · ART · Caldera"]
 
-    WH --> FS
     LV --> FS
-    SUR --> ES
+    WV --> FS
     FS --> ES --> KB
-    KB -- alert --> N8N -- enrich / notify / isolate --> KB
+    KB -- alert webhook --> N8N -- enrich · notify · open case --> KB
     KB --> CASE
-    ATK -. emulated attacks .-> WH
     ATK -. emulated attacks .-> LV
+    ATK -. emulated attacks .-> WV
 ```
 
 ## Quickstart
@@ -65,80 +68,75 @@ flowchart LR
 **Prerequisites:** Docker Desktop (running, 10 GB+ allocated), ~40 GB free disk.
 On Windows, start with [docs/windows-setup.md](docs/windows-setup.md).
 
-```bash
-cp .env.example .env          # then edit the passwords
-make up                       # start the Elastic core        (lands at M1)
-make status
-# Kibana → https://localhost:5601
-```
-
-No `make`? Use the PowerShell runner — same verbs:
-
 ```powershell
-.\soc.ps1 up
-.\soc.ps1 status
+# Windows (no make) — the PowerShell runner:
+.\scripts\bootstrap.ps1              # preflight + generate .env + start core, wait for green
+.\soc.ps1 telemetry                  # Linux victim + Elastic Agent
+.\scripts\enable-detection-rules.ps1 # prebuilt rules, filtered to our telemetry
+.\scripts\deploy-detections.ps1      # the 13 custom rules
+.\scripts\healthcheck.ps1            # expect 6/6
+# Kibana → https://localhost:5601  (user: elastic, password in .env; self-signed cert)
 ```
 
-Every task is a thin wrapper around `docker compose`; the raw commands are in
-[compose/README.md](compose/README.md).
+```bash
+# Linux / macOS / WSL — make, or scripts/bootstrap.sh:
+cp .env.example .env && make up && make telemetry
+```
 
-### Profiles
+Every task is a thin wrapper around `docker compose --env-file .env`; raw commands
+in [compose/README.md](compose/README.md).
 
-The lab is split into Compose profiles so a 16 GB host never runs more than it needs:
+### Overlays
 
-| Profile | Brings up | ~RAM | Typical use |
+The lab is split into Compose overlay files so an 8 GB Docker VM never runs more
+than it needs:
+
+| Overlay | Brings up | ~RAM | Typical use |
 |---|---|---|---|
-| `core` | Elasticsearch, Kibana, Fleet Server | 7–8 GB | always on |
-| `telemetry` | Suricata, Linux victim + agent | ~0.5 GB | always on |
-| `soar` | n8n | ~0.5 GB | optional |
-| `attack` | Caldera, attacker | ~1.5 GB | on demand |
-| `casemgmt` | TheHive, Cortex | ~4 GB | on demand (Kibana Cases is the default) |
+| base (`docker-compose.yml`) | Elasticsearch, Kibana, Fleet Server | ~5 GB | always on |
+| `compose.telemetry.yml` | Linux victim + Elastic Agent | ~1 GB | always on |
+| `compose.soar.yml` | n8n | ~0.5 GB | optional |
+| `compose.attack.yml` | attacker (+ Caldera) | ~0.3 GB (+1.5) | on demand |
+| `compose.casemgmt.yml` | TheHive, Cortex | ~4 GB | on demand (Kibana Cases is the default) |
 
-Working state ≈ 8–9 GB. Attack sessions: stop the browser, add a Windows victim VM (~4 GB), stay under ~13 GB.
+Working state ≈ 6–7 GB. For attack sessions add a Windows victim VM (~4 GB) and
+close other apps.
 
 ## Repository layout
 
 ```
 soc-in-a-box/
-├── compose/                 # all infrastructure-as-code
-│   ├── docker-compose.yml       # core: elasticsearch, kibana, fleet-server
-│   ├── compose.telemetry.yml    # suricata, linux victim
-│   ├── compose.attack.yml       # caldera, attacker
+├── compose/
+│   ├── docker-compose.yml       # core: sysctl, setup, elasticsearch, configure, kibana, fleet-server
+│   ├── compose.telemetry.yml    # linux victim
+│   ├── compose.attack.yml       # attacker (+ optional Caldera)
 │   ├── compose.soar.yml         # n8n
-│   ├── compose.casemgmt.yml     # thehive, cortex
-│   └── config/                  # service configs, agent policies, sysmon config
+│   ├── config/                  # setup.sh, configure.sh, kibana.yml (Fleet policies as code)
+│   └── victim-linux/            # Dockerfile for the Ubuntu + SSH + Agent victim
 ├── elastic/
-│   ├── detection-rules/         # custom rules as TOML (Elastic's detection-rules layout)
-│   │   ├── rules/               # rule source
-│   │   ├── tests/               # unit tests + sample events
-│   │   └── etc/                 # schema / config overrides
-│   ├── sigma/                   # source Sigma rules + conversion pipeline
-│   ├── fleet/                   # agent policies, integration configs
-│   └── dashboards/              # exported saved objects (NDJSON)
+│   ├── detection-rules/rules/   # 13 custom rules — one JSON file per rule
+│   └── sigma/rules/             # portable Sigma rules (CI converts them)
 ├── attack/
-│   ├── atomic/                  # Invoke-AtomicRedTeam runner + technique lists
-│   ├── caldera/                 # adversary profiles, custom abilities
+│   ├── atomic/                  # Atomic Red Team runner + curated technique list
 │   └── scenarios/               # scripted multi-stage kill chains
-├── soar/
-│   └── n8n/                     # exported workflows
-├── vm/                          # Windows victim: Vagrantfile + provisioning
-├── scripts/                     # bootstrap, navigator-layer generator, event replay
+├── soar/n8n/                    # the alert-triage workflow (import into n8n)
+├── vm/provision/                # Windows victim: audit policy, Sysmon, agent enroll, ART
+├── scripts/                     # bootstrap, setup-fleet, enable/deploy rules,
+│                                #   healthcheck, gap report, navigator layer
 ├── docs/
-│   ├── architecture.md
-│   ├── threat-model.md
-│   ├── scope.md                 # rules of engagement / authorization
-│   ├── windows-setup.md
-│   ├── detection-coverage.md    # ATT&CK Navigator layer (M4)
+│   ├── architecture.md · threat-model.md · scope.md · windows-setup.md
+│   ├── detection-coverage.md    # the coverage story + ATT&CK layer
+│   ├── demo.md                  # 10-minute walk-through
 │   ├── detections/              # one writeup per detection
 │   └── runbooks/                # IR runbooks
-└── .github/workflows/           # lint + detection CI
+└── .github/workflows/           # lint + detection-ci
 ```
 
 ## Roadmap
 
 - [x] **M0** — Repo scaffold, docs skeleton, architecture diagram
 - [x] **M1** — Elastic core up via one command (TLS on, Fleet Server running)
-- [x] **M2** — Telemetry: Linux victim + Elastic Agent (system/network), Fleet policies as code, ~90 curated prebuilt rules
+- [x] **M2** — Telemetry: Linux victim + Elastic Agent (system/network), Fleet policies as code, prebuilt rules filtered to compatible indices
 - [x] **M3** — Adversary emulation: scripted kill chains + Atomic Red Team + Caldera; gap report tooling
 - [x] **M4** — 13 custom detections (as code, MITRE-mapped, writeups) + Sigma rules + ATT&CK Navigator generator
 - [x] **M5** — Detection CI: rule schema + ATT&CK-mapping validation + Sigma conversion (GitHub Actions)
