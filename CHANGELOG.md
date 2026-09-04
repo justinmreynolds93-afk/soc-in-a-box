@@ -3,7 +3,38 @@
 All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.0.0] — 2026-09-04
+
+Windows telemetry live and the lab verified end to end against real data.
+
+### Added
+- **Windows host agent** enrolled and shipping — Sysmon (Olaf Hartong config),
+  Windows Security / System event logs, PowerShell script-block logs, auth.
+  `scripts/install-windows-telemetry.ps1` (elevated, ASCII + BOM, curl download).
+- Certs carry `host.docker.internal` as a SAN — one hostname for the Fleet output
+  and Fleet Server, reachable from both the containers and the Docker host.
+- `docs/verification.md` — API-pulled snapshot: 2 agents online, 256 rules
+  (250 succeeded / 6 partial / 0 failed), 13/13 custom rules green, live Sysmon
+  event breakdown.
+- `docs/wslconfig.example` — cap the WSL2 VM so a host agent isn't starved.
+
+### Fixed
+- **All 5 Windows custom rules** — invalid KQL (quoted-substring wildcards,
+  unescaped `(`); rewritten against live field data, now execute `succeeded`.
+- Fleet output loaded a container CA path a host agent can't reach → beats failed;
+  switched to `verification_mode: none` (encrypted, `--insecure` enrollment).
+- Windows policy ships **logs only** — `windows.perfmon` (~40k docs/10 min) was
+  pinning Elasticsearch; `windows/metrics` + `system/metrics` inputs disabled.
+- ES heap right-sized for the Windows-agent session (1.28 GB / 2.5 GB limit).
+- `enable-detection-rules.ps1` second pass disables prebuilt ES|QL rules that
+  hard-fail on absent fields.
+
+### Notes
+- Windows rules are proven to *execute* on live telemetry, not yet to *alert* —
+  attack validation needs the VirtualBox victim VM (`vm/`); the host is never a
+  target (`docs/scope.md`).
+
+## [0.1.0] — 2026-09-03
 
 ### Added — Windows telemetry path
 - `scripts/install-windows-telemetry.ps1` (elevated): Sysmon + Olaf Hartong

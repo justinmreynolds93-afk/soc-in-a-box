@@ -13,10 +13,13 @@ Built to run on a single 16 GB workstation.
 ![custom rules](https://img.shields.io/badge/custom%20rules-13-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-> **Status:** `v0.1` — M0–M7 built and running. Linux telemetry + custom
-> detections + SOAR + CI are verified end-to-end. The Windows victim ships as
-> ready-to-run provisioning (`vm/`); screenshots and a `v1.0` tag are the
-> remaining polish.
+> **Status:** `v1.0` — M0–M7 built, running, and verified against live data.
+> Two Fleet agents online (Linux container + **Windows host**), 256 detection
+> rules enabled (250 succeeded / 6 partial / 0 failed), all 13 custom rules
+> executing green on real Sysmon/Security/auth telemetry. Numbers pulled from the
+> API in [`docs/verification.md`](docs/verification.md). Attack-validating the
+> Windows rules needs the VirtualBox victim VM (`vm/`) — attacks are never run
+> against the host ([`docs/scope.md`](docs/scope.md)).
 
 ---
 
@@ -137,12 +140,12 @@ soc-in-a-box/
 
 - [x] **M0** — Repo scaffold, docs skeleton, architecture diagram
 - [x] **M1** — Elastic core up via one command (TLS on, Fleet Server running)
-- [x] **M2** — Telemetry: Linux victim + Elastic Agent (system/network), Fleet policies as code, prebuilt rules filtered to compatible indices
+- [x] **M2** — Telemetry: Linux victim + **Windows host** Elastic Agent (Sysmon + Security + auth), Fleet policies as code, prebuilt rules filtered to compatible indices
 - [x] **M3** — Adversary emulation: scripted kill chains + Atomic Red Team + Caldera; gap report tooling
 - [x] **M4** — 13 custom detections (as code, MITRE-mapped, writeups) + Sigma rules + ATT&CK Navigator generator
 - [x] **M5** — Detection CI: rule schema + ATT&CK-mapping validation + Sigma conversion (GitHub Actions)
 - [x] **M6** — n8n SOAR playbook (enrich → Slack → Kibana case) + IR runbooks
-- [~] **M7** — Polish: architecture + coverage docs + demo script done; screenshots/GIFs + `v1.0` tag pending a review pass
+- [x] **M7** — Polish: architecture + coverage + [verification](docs/verification.md) docs, demo script, `v1.0` tag. Kibana screenshots are optional (`docs/img/`, `scripts/open-kibana.ps1`) — the verification doc carries the evidence.
 
 ## Scope & safety
 
