@@ -41,16 +41,25 @@ function Step($m) { Write-Host "`n== $m" -ForegroundColor Cyan }
 $work = Join-Path $env:TEMP 'soc-win'
 New-Item -ItemType Directory -Force -Path $work | Out-Null
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$ProgressPreference = 'SilentlyContinue'   # Windows PowerShell IWR is ~10x slower with the progress bar
+
+# Fast download: curl.exe (bundled since Win10 1803) saturates the link;
+# Invoke-WebRequest in Windows PowerShell does not.
+function Get-File($url, $out) {
+    $curl = "$env:SystemRoot\System32\curl.exe"
+    if (Test-Path $curl) { & $curl -sSL --fail -o $out $url; if ($LASTEXITCODE) { throw "download failed: $url" } }
+    else { Invoke-WebRequest $url -OutFile $out -UseBasicParsing }
+}
 
 # -- 1. Sysmon ---------------------------------------------------------------
 Step 'Sysmon'
 if (Get-Service Sysmon64 -ErrorAction SilentlyContinue) {
     Write-Host '   already installed - updating config only'
 } else {
-    Invoke-WebRequest 'https://download.sysinternals.com/files/Sysmon.zip' -OutFile "$work\Sysmon.zip"
+    Get-File 'https://download.sysinternals.com/files/Sysmon.zip' "$work\Sysmon.zip"
     Expand-Archive "$work\Sysmon.zip" -DestinationPath $work -Force
 }
-Invoke-WebRequest 'https://raw.githubusercontent.com/olafhartong/sysmon-modular/master/sysmonconfig.xml' -OutFile "$work\sysmonconfig.xml"
+Get-File 'https://raw.githubusercontent.com/olafhartong/sysmon-modular/master/sysmonconfig.xml' "$work\sysmonconfig.xml"
 $sysmon = Join-Path $work 'Sysmon64.exe'
 if (Get-Service Sysmon64 -ErrorAction SilentlyContinue) { & $sysmon -c "$work\sysmonconfig.xml" }
 else { & $sysmon -accepteula -i "$work\sysmonconfig.xml" }
@@ -78,8 +87,11 @@ if (Test-Path 'C:\Program Files\Elastic\Agent\elastic-agent.exe') {
     & 'C:\Program Files\Elastic\Agent\elastic-agent.exe' enroll --url=$FleetUrl --enrollment-token=$token --insecure --force
 } else {
     $pkg = "elastic-agent-$version-windows-x86_64"
-    Invoke-WebRequest "https://artifacts.elastic.co/downloads/beats/elastic-agent/$pkg.zip" -OutFile "$work\$pkg.zip"
-    Expand-Archive "$work\$pkg.zip" -DestinationPath $work -Force
+    if (-not (Test-Path "$work\$pkg.zip")) {
+        Write-Host "   downloading $pkg.zip (~600 MB)"
+        Get-File "https://artifacts.elastic.co/downloads/beats/elastic-agent/$pkg.zip" "$work\$pkg.zip"
+    }
+    if (-not (Test-Path "$work\$pkg\elastic-agent.exe")) { Expand-Archive "$work\$pkg.zip" -DestinationPath $work -Force }
     Push-Location "$work\$pkg"
     & '.\elastic-agent.exe' install --url=$FleetUrl --enrollment-token=$token --insecure --non-interactive
     Pop-Location
