@@ -84,11 +84,20 @@ xpack.fleet.agentPolicies:
     namespace: default
     monitoring_enabled:
       - logs
-      - metrics
     package_policies:
+      # A detection lab wants LOGS, not metrics. perfmon alone was ~40k docs /
+      # 10 min and pinned Elasticsearch on this host. Keep the winlog/logfile
+      # inputs (Sysmon, Security, PowerShell, System log, auth); drop the
+      # windows/metrics + system/metrics inputs.
       - name: system-windows
         package:
           name: system
+        inputs:
+          - type: system/metrics
+            enabled: false
       - name: windows-events
         package:
           name: windows
+        inputs:
+          - type: windows/metrics
+            enabled: false
