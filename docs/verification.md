@@ -4,7 +4,13 @@ A point-in-time capture of the running lab, pulled straight from the
 Elasticsearch and Kibana APIs. Reproduce any line with the commands at the
 bottom.
 
-**Snapshot: 2026-09-04 05:50 UTC** · Elastic Stack 8.19.20 · Docker Desktop / WSL2 on a 16 GB Windows 11 host
+**Snapshot: 2026-09-04 05:52 UTC** · Elastic Stack 8.19.20 · Docker Desktop / WSL2 on a 16 GB Windows 11 host
+
+![Security → Explore → Hosts](img/explore-hosts.png)
+
+*Security → Explore → Hosts — 76 processes across 2 hosts, assembled from the
+Sysmon / auth telemetry the Fleet agents ship. Fleet → Data streams at this
+snapshot: `system.security` 12.9 MB, `windows.sysmon_operational` 13.2 MB.*
 
 ## Fleet agents
 

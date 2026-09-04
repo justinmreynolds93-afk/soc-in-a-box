@@ -37,6 +37,30 @@ Built to run on a single 16 GB workstation.
 | SOAR — enrich → Slack → Kibana case | `soar/n8n/` |
 | Incident-response runbooks | `docs/runbooks/` |
 
+## Verified
+
+Pulled from the Elasticsearch / Kibana APIs on the running lab — full snapshot
+and repro commands in [docs/verification.md](docs/verification.md).
+
+| Check | Result |
+|---|---|
+| Fleet agents online | **2** — `Justin` (Windows 11 Home, `windows-victim-policy`) · Fleet Server (Ubuntu 24.04) |
+| Detection rules enabled | **256** — 250 `succeeded`, 6 `partial failure`, **0 `failed`** |
+| Custom rules (`SOC-in-a-Box`) | **13 / 13 execute `succeeded`** against live telemetry |
+| Windows telemetry (10 min) | `windows.sysmon_operational` 3,440 · `system.security` 918 |
+| Sysmon coverage | ProcessAccess, PipeEvent, RegistryEvent, Network connection, Image load, FileCreate, Process creation, DNS, FileDelete, ProcessTampering |
+| Events indexed (`logs-*` / `metrics-*`) | ~325,000 |
+| Linux scenario detection | 5 / 11 ATT&CK techniques, 27 alerts / 8 rules (`docs/detection-coverage.md`) |
+
+> Windows rules are proven to **execute** on live Sysmon/Security data; **alerting**
+> them needs the VirtualBox victim VM — attacks are never run against the host
+> ([`docs/scope.md`](docs/scope.md)).
+
+![Security → Explore → Hosts](docs/img/explore-hosts.png)
+
+*Security → Explore → Hosts: inventory and 76 processes across 2 hosts, built
+entirely from the Sysmon / auth telemetry the agents ship.*
+
 ## Architecture
 
 Full diagram, data flow, and design decisions: [docs/architecture.md](docs/architecture.md).

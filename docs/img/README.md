@@ -1,8 +1,14 @@
 # docs/img/
 
-Optional Kibana screenshots for the README. The hard evidence lives in
-[`../verification.md`](../verification.md) (API-pulled, reproducible) — images
-here are a nice-to-have, not load-bearing.
+Kibana screenshots for the README. The hard evidence is in
+[`../verification.md`](../verification.md) (API-pulled, reproducible); these show it.
+
+| file | page |
+|---|---|
+| `explore-hosts.png` | Security → Explore → Hosts — inventory built from the telemetry |
+
+More welcome (`scripts/open-kibana.ps1` opens the useful pages): Fleet → Data
+streams, the custom rules list filtered to `Custom rules (13)`, a rule detail page.
 
 The lab CA is already trusted for the current Windows user (added to
 `Cert:\CurrentUser\Root`), so `https://localhost:5601` opens clean in Chrome.
