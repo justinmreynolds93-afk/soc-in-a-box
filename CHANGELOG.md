@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — Windows telemetry path
+- `scripts/install-windows-telemetry.ps1` (elevated): Sysmon + Olaf Hartong
+  config, the audit subcategories + PS script-block logging the rules need, and a
+  Fleet-enrolled Elastic Agent on the Windows Victim Policy. curl.exe downloads,
+  ASCII + UTF-8 BOM so Windows PowerShell 5.1 parses it.
+- Certs now carry `host.docker.internal` in the SAN; one Fleet output + one Fleet
+  Server host on that name, reachable from containers and the Docker host alike
+- `docs/wslconfig.example` — cap the WSL2 VM so a host agent isn't starved
+- **Status:** agent enrolls and registers in Fleet; its beats can't hold the
+  ~400 MB they need on a 16 GB machine also running the stack — see
+  `docs/detection-coverage.md`. 5 custom Windows rules + Windows prebuilts are
+  deployed and enabled (261 rules live), ready for when the data streams appear.
+
 ### Added — M6 (SOAR + response)
 - `compose/compose.soar.yml` + `soar/n8n/soc-alert-triage.json`: n8n **polls**
   Kibana for open SOC-in-a-Box alerts every 5 min (Elastic Basic has no rule

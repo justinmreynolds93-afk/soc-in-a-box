@@ -75,5 +75,31 @@ victim rather than a container.
 | `soc-win-defender-tampering` | query | `logs-windows.sysmon_operational-*` | T1562.001 |
 | `soc-win-lsass-credential-access` | query | `logs-windows.sysmon_operational-*` | T1003.001 |
 
-Windows rules stay in "partial failure" until the Windows victim VM is enrolled
-(`vm/`, `scripts/setup-fleet.ps1` prints its enrollment token).
+## Windows victim: enrolled, telemetry gated by host RAM
+
+The Windows path was taken as far as this hardware allows:
+
+- **Done:** `scripts/install-windows-telemetry.ps1` installs Sysmon (Olaf Hartong
+  config) + the audit subcategories the rules need + PowerShell script-block
+  logging, and Fleet-enrolls an Elastic Agent on the **Windows Victim Policy**
+  (System + Windows integrations). The agent enrolls and appears in Fleet.
+- **The networking fix that took two tries:** a host-installed agent can't use
+  the container hostnames (`fleet-server:8220`, `elasticsearch:9200`). The lab
+  now issues its certs with `host.docker.internal` in the SAN and uses that one
+  name for the Fleet output and the single Fleet Server host — reachable from
+  both the containers and the host, with full TLS.
+- **The wall:** the agent's collectors (filebeat/metricbeat) need ~400 MB, and
+  this 16 GB machine — running the Docker stack, the WSL2 VM, Windows, Defender,
+  and a browser — has ~1.7 GB available with **core only** up. The agent
+  supervisor stays connected; its beats can't hold memory, so Windows datasets
+  don't populate and the 5 Windows rules stay in "partial failure".
+
+This is the project's thesis landing on its own author: **you cannot run
+everything at once on 16 GB.** To validate the Windows rules against live data,
+run *only* `core` + the host agent (stop `telemetry` and `soar`), cap the WSL2 VM
+(`~/.wslconfig`, see `docs/wslconfig.example`), and free host RAM (close the
+browser). Then the beats start, Sysmon/Security/System land in
+`logs-windows.*` / `logs-system.security-*`, and the rules fire.
+
+The rules themselves are deployed and enabled now (261 rules live) — they begin
+evaluating the moment the data streams appear.

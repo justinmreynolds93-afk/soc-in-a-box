@@ -1,0 +1,15 @@
+# Copy to  C:\Users\<you>\.wslconfig  then:  wsl --shutdown  (Docker Desktop restarts the VM)
+#
+# Without a cap, the Docker Desktop / WSL2 VM grabs host RAM and does not give it
+# back when containers stop -- which starves a host-installed Elastic Agent (the
+# Windows victim). This caps the VM so the rest of 16 GB stays with Windows.
+
+[wsl2]
+memory=6GB              # ES 1G heap + Kibana + Fleet fit; raise if you add profiles
+processors=4
+swap=2GB
+autoMemoryReclaim=gradual   # hand freed memory back to Windows
+
+[experimental]
+autoMemoryReclaim=gradual
+hostAddressLoopback=true
