@@ -1,3 +1,0 @@
-{"ts":"2026-09-04T00:02:09Z","technique":"T1110.001","name":"Brute Force - SSH password guessing"}
-{"ts":"2026-09-04T00:02:35Z","technique":"T1078","name":"Valid Accounts"}
-{"ts":"2026-09-04T00:03:01Z","technique":"T1059.004","name":"Unix shell execution"}

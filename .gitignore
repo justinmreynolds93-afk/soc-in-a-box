@@ -18,6 +18,9 @@ vm/.vagrant/
 *.box
 *.ova
 
+# scenario run artifacts
+attack/scenarios/runs/
+
 # n8n local state
 soar/n8n/.n8n/
 

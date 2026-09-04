@@ -33,23 +33,29 @@ Two consequences, and they shape the rest of the project:
 
 ## Scenario → detection results
 
-`attack/scenarios/linux-intrusion.sh` (11 ATT&CK techniques). Latest gap report:
+`attack/scenarios/linux-intrusion.sh` (11 ATT&CK techniques).
+`scripts/detection-gap-report.ps1` after the run:
 
-<!-- paste the output of scripts/detection-gap-report.ps1 here after each run -->
+**Coverage: 5 / 11 techniques (45%) — 27 alerts across 8 rules.**
 
 | Technique | Name | Detected by |
 |---|---|---|
 | T1110.001 | SSH password guessing | `soc-linux-ssh-bruteforce` (custom) |
-| T1078 | Valid Accounts | `soc-linux-ssh-bruteforce-success` (custom) |
-| T1059.004 | Unix shell execution | — needs endpoint/auditd |
-| T1087.001 | Account / system / file discovery | — needs endpoint/auditd |
-| T1003.008 | Credential dumping (/etc/shadow) | — needs file events |
+| T1078 | Valid Accounts | `soc-linux-ssh-bruteforce-success` (custom) + 2 prebuilt ("Successful SSH Auth from Unusual IP / User") |
+| T1059.004 | Unix shell execution | **gap** — needs process events (endpoint/auditd) |
+| T1087.001 | Account / system / file discovery | **gap** — needs process events |
+| T1003.008 | Credential dumping (/etc/shadow) | **gap** — needs file events |
 | T1136.001 | Create local account | `soc-linux-new-local-user` (custom) |
 | T1053.003 | Cron persistence | `soc-linux-cron-suspicious-command` (custom) |
-| T1548.003 | Sudoers modification | partial — `soc-linux-user-added-privileged-group` |
-| T1105 | Ingress tool transfer | partial — `soc-network-external-beaconing` if remote |
+| T1548.003 | Sudoers / privileged group | partial — `soc-linux-user-added-privileged-group` fires on the group add, not the `/etc/sudoers.d` write (needs file events) |
+| T1105 | Ingress tool transfer | **gap** — the download is a process event; only visible if the payload host also trips `soc-network-external-beaconing` |
 | T1071.001 | C2 + exfil over web | `soc-network-external-beaconing` (custom) |
-| T1070.003 | Clear history / logs | — needs file/process events |
+| T1070.003 | Clear history / logs | **gap** — needs file/process events |
+
+**Every gap is a process- or file-level technique.** They are covered by the
+Windows victim (Sysmon → `logs-windows.sysmon_operational-*`), and would be
+covered on Linux by adding Elastic Defend or `auditd_manager` on a VM-based
+victim rather than a container.
 
 ## Custom rules and the telemetry they use
 

@@ -12,7 +12,7 @@
 #>
 param(
     [string]$RunLog,
-    [int]$WindowMinutes = 20
+    [int]$SinceMinutes = 35
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
@@ -23,10 +23,12 @@ if (-not $RunLog) {
 }
 if (-not (Test-Path $RunLog)) { throw "no run log found — run attack/scenarios/linux-intrusion.sh first" }
 
+# Only the technique list is taken from the run log; the alert window is simply
+# "the last N minutes" (run the report right after a scenario) — avoids all the
+# timezone ambiguity of parsing the log's timestamps.
 $events = Get-Content $RunLog | ForEach-Object { $_ | ConvertFrom-Json }
-$runStart = [datetimeoffset]::Parse($events[0].ts, $null, [System.Globalization.DateTimeStyles]::RoundtripKind).UtcDateTime
-$from = $runStart.AddMinutes(-2).ToString('o')
-$to   = $runStart.AddMinutes($WindowMinutes).ToString('o')
+$from = "now-${SinceMinutes}m"
+$to   = "now"
 
 $pw  = (Select-String -Path .env -Pattern '^ELASTIC_PASSWORD=(.+)').Matches.Groups[1].Value
 $kbP = (Select-String -Path .env -Pattern '^KIBANA_PORT=(\d+)').Matches.Groups[1].Value
@@ -36,13 +38,14 @@ $h   = @{
     'Content-Type' = 'application/json'
 }
 
-# alerts in the window
+# alerts in the window (any rule type — query / threshold / eql)
 $body = @{
     query = @{ bool = @{ filter = @(
         @{ range = @{ '@timestamp' = @{ gte = $from; lte = $to } } }
-        @{ term  = @{ 'kibana.alert.rule.category' = 'siem.queryRule' } }
+        @{ exists = @{ field = 'kibana.alert.rule.name' } }
     ) } }
-    size = 200
+    size = 500
+    collapse = @{ field = 'kibana.alert.rule.uuid' }
     _source = @('kibana.alert.rule.name', 'kibana.alert.rule.threat')
 } | ConvertTo-Json -Depth 10
 
