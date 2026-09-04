@@ -24,10 +24,7 @@ param(
     [string]$EnvFile
 )
 $ErrorActionPreference = 'Stop'
-
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole('Administrator')) {
-    throw 'Run this in an elevated PowerShell (Run as administrator).'
-}
+# Elevation is enforced by "#Requires -RunAsAdministrator" at the top of the file.
 
 # -- read the lab .env -------------------------------------------------------
 if (-not $EnvFile) { $EnvFile = Join-Path (Split-Path $PSScriptRoot -Parent) '.env' }
