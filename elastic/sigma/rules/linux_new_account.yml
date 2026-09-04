@@ -1,0 +1,26 @@
+title: Local User Account Created (Linux)
+id: 8a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d
+status: experimental
+description: A local account was created via useradd/adduser — common persistence.
+author: SOC-in-a-Box
+date: 2026/09/03
+references:
+  - https://attack.mitre.org/techniques/T1136/001/
+logsource:
+  product: linux
+  service: auth
+detection:
+  selection:
+    process.name:
+      - useradd
+      - adduser
+  condition: selection
+fields:
+  - user.name
+  - message
+falsepositives:
+  - Sanctioned onboarding / provisioning automation
+level: medium
+tags:
+  - attack.persistence
+  - attack.t1136.001

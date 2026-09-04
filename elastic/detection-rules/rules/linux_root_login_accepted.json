@@ -1,0 +1,28 @@
+{
+  "rule_id": "soc-linux-root-login-accepted",
+  "name": "Direct Root Login Accepted over SSH (Linux)",
+  "description": "sshd accepted an interactive session for the root account. Most hardened hosts set PermitRootLogin no and require a normal account + sudo, so a successful root SSH login is either a misconfiguration or an attacker using stolen root credentials.",
+  "type": "query",
+  "language": "kuery",
+  "index": ["logs-system.auth-*"],
+  "query": "event.dataset:\"system.auth\" and event.outcome:\"success\" and process.name:\"sshd\" and (user.name:\"root\" or system.auth.user:\"root\") and not source.ip:\"127.0.0.1\" and not source.ip:\"::1\"",
+  "severity": "high",
+  "risk_score": 64,
+  "from": "now-9m",
+  "interval": "5m",
+  "max_signals": 100,
+  "enabled": true,
+  "tags": ["SOC-in-a-Box", "OS: Linux", "Tactic: Initial Access", "Tactic: Lateral Movement", "Data Source: System"],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": { "id": "TA0001", "name": "Initial Access", "reference": "https://attack.mitre.org/tactics/TA0001/" },
+      "technique": [
+        { "id": "T1078", "name": "Valid Accounts", "reference": "https://attack.mitre.org/techniques/T1078/",
+          "subtechnique": [ { "id": "T1078.003", "name": "Local Accounts", "reference": "https://attack.mitre.org/techniques/T1078/003/" } ] }
+      ]
+    }
+  ],
+  "false_positives": ["Legacy hosts or appliances that require root SSH (allow-list their management source ranges)."],
+  "note": "### Triage\n- Was this expected for `source.ip`? Confirm with the host owner.\n- Review the session's activity and consider disabling PermitRootLogin."
+}

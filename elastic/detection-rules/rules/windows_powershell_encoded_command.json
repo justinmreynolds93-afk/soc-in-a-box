@@ -1,0 +1,28 @@
+{
+  "rule_id": "soc-win-powershell-encoded-command",
+  "name": "PowerShell EncodedCommand or Download Cradle (Windows)",
+  "description": "PowerShell invoked with -EncodedCommand/-enc, or a script block containing a download cradle (IEX + Net.WebClient / Invoke-WebRequest to a remote host). Common first-stage execution for commodity and hands-on-keyboard intrusions.",
+  "type": "query",
+  "language": "kuery",
+  "index": ["logs-windows.sysmon_operational-*", "logs-system.security-*", "winlogbeat-*", "logs-windows.powershell*"],
+  "query": "(event.provider:\"Microsoft-Windows-Sysmon\" and event.code:\"1\" and process.name:(\"powershell.exe\" or \"pwsh.exe\") and process.command_line:(*-enc* or *-EncodedCommand* or *FromBase64String* or *IEX* or *Invoke-Expression* or *Net.WebClient* or *DownloadString* or *Invoke-WebRequest*)) or (event.code:\"4104\" and powershell.file.script_block_text:(*FromBase64String* or *Net.WebClient* or *DownloadString* or *IEX(* or *iex(*))",
+  "severity": "high",
+  "risk_score": 68,
+  "from": "now-9m",
+  "interval": "5m",
+  "max_signals": 100,
+  "enabled": true,
+  "tags": ["SOC-in-a-Box", "OS: Windows", "Tactic: Execution", "Data Source: Sysmon"],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": { "id": "TA0002", "name": "Execution", "reference": "https://attack.mitre.org/tactics/TA0002/" },
+      "technique": [
+        { "id": "T1059", "name": "Command and Scripting Interpreter", "reference": "https://attack.mitre.org/techniques/T1059/",
+          "subtechnique": [ { "id": "T1059.001", "name": "PowerShell", "reference": "https://attack.mitre.org/techniques/T1059/001/" } ] }
+      ]
+    }
+  ],
+  "false_positives": ["Some management tooling (SCCM, Intune, RMM agents) uses encoded commands — allow-list by parent process or signed script path."],
+  "note": "### Triage\n- Decode the command (`-enc` is base64 UTF-16LE).\n- Check the parent process and the user context.\n- Resolve any URLs and check network telemetry for the callback."
+}

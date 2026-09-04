@@ -1,0 +1,38 @@
+{
+  "rule_id": "soc-linux-ssh-bruteforce",
+  "name": "SSH Brute Force Attempt (Linux)",
+  "description": "Five or more failed SSH authentications from one source address within the lookback window. Classic password-guessing against internet- or LAN-exposed SSH. Tune the threshold up for hosts that legitimately see many failed logins (shared jump boxes, CI runners).",
+  "type": "threshold",
+  "language": "kuery",
+  "query": "event.dataset:\"system.auth\" and event.category:\"authentication\" and event.outcome:\"failure\" and (event.action:(\"ssh_login\" or \"authentication_failure\") or process.name:\"sshd\")",
+  "index": ["logs-system.auth-*"],
+  "threshold": { "field": ["source.ip"], "value": 5 },
+  "severity": "medium",
+  "risk_score": 47,
+  "from": "now-9m",
+  "interval": "5m",
+  "max_signals": 100,
+  "enabled": true,
+  "tags": ["SOC-in-a-Box", "OS: Linux", "Tactic: Credential Access", "Data Source: System"],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": { "id": "TA0006", "name": "Credential Access", "reference": "https://attack.mitre.org/tactics/TA0006/" },
+      "technique": [
+        {
+          "id": "T1110",
+          "name": "Brute Force",
+          "reference": "https://attack.mitre.org/techniques/T1110/",
+          "subtechnique": [
+            { "id": "T1110.001", "name": "Password Guessing", "reference": "https://attack.mitre.org/techniques/T1110/001/" }
+          ]
+        }
+      ]
+    }
+  ],
+  "false_positives": [
+    "Users repeatedly mistyping a password.",
+    "Misconfigured automation or backup jobs with stale credentials."
+  ],
+  "note": "### Triage\n- Pivot on `source.ip`: is it internal or external? Known scanner?\n- Check for a *successful* login from the same `source.ip` shortly after (see rule `soc-linux-ssh-bruteforce-success`).\n- If external and no success: block at the perimeter, no host action needed."
+}

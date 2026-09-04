@@ -1,0 +1,33 @@
+title: SSH Brute Force From Single Source (Linux)
+id: 6f8b1a2c-9d3e-4a7b-8c1d-2e3f4a5b6c7d
+status: experimental
+description: >
+  Multiple failed SSH authentications from one source address. Vendor-neutral
+  Sigma source for soc-linux-ssh-bruteforce; converted to Elastic in CI.
+author: SOC-in-a-Box
+date: 2026/09/03
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+logsource:
+  product: linux
+  service: auth
+detection:
+  selection:
+    process.name: sshd
+  failure:
+    - message|contains: 'Failed password'
+    - message|contains: 'Invalid user'
+    - message|contains: 'authentication failure'
+  condition: selection and failure
+  timeframe: 10m
+  # tuning: count(source.ip) by source.ip > 5   (applied at conversion time)
+fields:
+  - source.ip
+  - user.name
+falsepositives:
+  - Users mistyping passwords
+  - Automation with stale credentials
+level: medium
+tags:
+  - attack.credential_access
+  - attack.t1110.001

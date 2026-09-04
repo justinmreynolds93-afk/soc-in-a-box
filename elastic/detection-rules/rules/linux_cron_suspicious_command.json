@@ -1,0 +1,31 @@
+{
+  "rule_id": "soc-linux-cron-suspicious-command",
+  "name": "User Crontab Replaced (Linux)",
+  "description": "A user crontab was replaced via `crontab -` (syslog: 'REPLACE'). Cron is a durable persistence mechanism. NOTE: the cron daemon logs the *action*, not the command body, so this rule cannot see the payload — that requires file-integrity monitoring of /var/spool/cron and /etc/cron.d (auditd / Elastic Defend). Treat as a medium-priority lead and pull the crontab during triage.",
+  "type": "query",
+  "language": "kuery",
+  "index": ["logs-system.syslog-*"],
+  "query": "event.dataset:\"system.syslog\" and process.name:\"crontab\" and message:(\"REPLACE\" or \"REWRITE\")",
+  "severity": "medium",
+  "risk_score": 47,
+  "from": "now-9m",
+  "interval": "5m",
+  "max_signals": 100,
+  "enabled": true,
+  "tags": ["SOC-in-a-Box", "OS: Linux", "Tactic: Persistence", "Data Source: System"],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": { "id": "TA0003", "name": "Persistence", "reference": "https://attack.mitre.org/tactics/TA0003/" },
+      "technique": [
+        { "id": "T1053", "name": "Scheduled Task/Job", "reference": "https://attack.mitre.org/techniques/T1053/",
+          "subtechnique": [ { "id": "T1053.003", "name": "Cron", "reference": "https://attack.mitre.org/techniques/T1053/003/" } ] }
+      ]
+    }
+  ],
+  "false_positives": [
+    "Deployment tooling and users legitimately editing their crontab.",
+    "High volume expected on shared hosts — raise severity only with corroborating signal (a preceding SSH brute-force success, a new account)."
+  ],
+  "note": "### Triage\n- `crontab -l -u <user>` on the host — read the actual entries.\n- Resolve any callback host and check `logs-network_traffic.*` for beacons.\n- Correlate with `soc-linux-ssh-bruteforce-success` / `soc-linux-new-local-user` on the same host."
+}

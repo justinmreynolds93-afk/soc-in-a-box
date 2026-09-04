@@ -1,0 +1,33 @@
+{
+  "rule_id": "soc-linux-ssh-bruteforce-success",
+  "name": "Successful SSH Login After Brute Force (Linux)",
+  "description": "A successful SSH authentication from a source address that produced multiple failed authentications immediately before. Strong signal of a guessed or sprayed credential succeeding.",
+  "type": "eql",
+  "language": "eql",
+  "index": ["logs-system.auth-*"],
+  "query": "sequence by source.ip with maxspan=10m\n  [ authentication where event.outcome == \"failure\" ] with runs=5\n  [ authentication where event.outcome == \"success\" ]",
+  "severity": "high",
+  "risk_score": 73,
+  "from": "now-30m",
+  "interval": "10m",
+  "max_signals": 100,
+  "enabled": true,
+  "tags": ["SOC-in-a-Box", "OS: Linux", "Tactic: Credential Access", "Tactic: Initial Access", "Data Source: System"],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": { "id": "TA0006", "name": "Credential Access", "reference": "https://attack.mitre.org/tactics/TA0006/" },
+      "technique": [
+        { "id": "T1110", "name": "Brute Force", "reference": "https://attack.mitre.org/techniques/T1110/",
+          "subtechnique": [ { "id": "T1110.001", "name": "Password Guessing", "reference": "https://attack.mitre.org/techniques/T1110/001/" } ] }
+      ]
+    },
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": { "id": "TA0001", "name": "Initial Access", "reference": "https://attack.mitre.org/tactics/TA0001/" },
+      "technique": [ { "id": "T1078", "name": "Valid Accounts", "reference": "https://attack.mitre.org/techniques/T1078/" } ]
+    }
+  ],
+  "false_positives": ["A user fat-fingering a password several times before getting it right."],
+  "note": "### Triage\n- Treat as a likely account compromise. Identify `user.name` and `source.ip`.\n- Review everything that session did: new processes, sudo, file writes, outbound connections.\n- Reset the account credential and invalidate active sessions."
+}

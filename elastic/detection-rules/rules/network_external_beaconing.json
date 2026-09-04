@@ -1,0 +1,32 @@
+{
+  "rule_id": "soc-network-external-beaconing",
+  "name": "Repeated Outbound Connections to a Single External Host (Beaconing)",
+  "description": "Many network flows from one internal host to one external destination in a short window — the shape of C2 check-ins. Threshold-based; a low-and-slow beacon may need a longer interval or a ratio/entropy job.",
+  "type": "threshold",
+  "language": "kuery",
+  "index": ["logs-network_traffic.flow-*"],
+  "query": "network.direction:(\"egress\" or \"outbound\" or \"external\") or (source.ip:(10.0.0.0/8 or 172.16.0.0/12 or 192.168.0.0/16) and not destination.ip:(10.0.0.0/8 or 172.16.0.0/12 or 192.168.0.0/16 or 127.0.0.0/8))",
+  "threshold": { "field": ["source.ip", "destination.ip"], "value": 15 },
+  "severity": "medium",
+  "risk_score": 47,
+  "from": "now-16m",
+  "interval": "10m",
+  "max_signals": 100,
+  "enabled": true,
+  "tags": ["SOC-in-a-Box", "Domain: Network", "Tactic: Command and Control", "Data Source: Network Packet Capture"],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": { "id": "TA0011", "name": "Command and Control", "reference": "https://attack.mitre.org/tactics/TA0011/" },
+      "technique": [
+        { "id": "T1071", "name": "Application Layer Protocol", "reference": "https://attack.mitre.org/techniques/T1071/",
+          "subtechnique": [ { "id": "T1071.001", "name": "Web Protocols", "reference": "https://attack.mitre.org/techniques/T1071/001/" } ] }
+      ]
+    }
+  ],
+  "false_positives": [
+    "Software update checks, telemetry, and SaaS agents (allow-list their destinations).",
+    "NTP, DNS-over-HTTPS resolvers, CDN endpoints."
+  ],
+  "note": "### Triage\n- Resolve `destination.ip` — reputation, ASN, age of domain.\n- Look at flow regularity (fixed interval = automated) and `source.bytes` vs `destination.bytes`.\n- Identify the process/user on `source.ip` from host telemetry."
+}

@@ -1,0 +1,28 @@
+{
+  "rule_id": "soc-win-defender-tampering",
+  "name": "Microsoft Defender Disabled or Tampered (Windows)",
+  "description": "Real-time protection turned off, exclusions added, or the Defender service disabled — via Set-MpPreference, Add-MpPreference, sc.exe, or registry writes to the Windows Defender policy keys.",
+  "type": "query",
+  "language": "kuery",
+  "index": ["logs-windows.sysmon_operational-*", "winlogbeat-*", "logs-windows.forwarded-*"],
+  "query": "(event.provider:\"Microsoft-Windows-Sysmon\" and event.code:\"1\" and process.command_line:(*DisableRealtimeMonitoring* or *\"Add-MpPreference\"* or *\"-ExclusionPath\"* or *\"-ExclusionProcess\"* or *\"sc \"*stop*WinDefend* or *\"sc \"*config*WinDefend*)) or (event.provider:\"Microsoft-Windows-Sysmon\" and event.code:(\"12\" or \"13\") and registry.path:(*\\\\Windows Defender\\\\* and (*DisableAntiSpyware* or *DisableRealtimeMonitoring* or *\\\\Exclusions\\\\*)))",
+  "severity": "high",
+  "risk_score": 73,
+  "from": "now-9m",
+  "interval": "5m",
+  "max_signals": 100,
+  "enabled": true,
+  "tags": ["SOC-in-a-Box", "OS: Windows", "Tactic: Defense Evasion", "Data Source: Sysmon"],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": { "id": "TA0005", "name": "Defense Evasion", "reference": "https://attack.mitre.org/tactics/TA0005/" },
+      "technique": [
+        { "id": "T1562", "name": "Impair Defenses", "reference": "https://attack.mitre.org/techniques/T1562/",
+          "subtechnique": [ { "id": "T1562.001", "name": "Disable or Modify Tools", "reference": "https://attack.mitre.org/techniques/T1562/001/" } ] }
+      ]
+    }
+  ],
+  "false_positives": ["Endpoint management tools that manage exclusions centrally — allow-list the managing process."],
+  "note": "### Triage\n- Which setting changed and who changed it?\n- An exclusion added just before a file write to that path is a strong staging indicator."
+}

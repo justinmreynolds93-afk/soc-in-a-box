@@ -1,0 +1,28 @@
+{
+  "rule_id": "soc-linux-new-local-user",
+  "name": "Local User Account Created (Linux)",
+  "description": "A local account was added via useradd/adduser. On a server that is not an identity source this is rare and is a common persistence step after initial access.",
+  "type": "query",
+  "language": "kuery",
+  "index": ["logs-system.auth-*"],
+  "query": "event.dataset:\"system.auth\" and process.name:(\"useradd\" or \"adduser\")",
+  "severity": "medium",
+  "risk_score": 47,
+  "from": "now-9m",
+  "interval": "5m",
+  "max_signals": 100,
+  "enabled": true,
+  "tags": ["SOC-in-a-Box", "OS: Linux", "Tactic: Persistence", "Data Source: System"],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": { "id": "TA0003", "name": "Persistence", "reference": "https://attack.mitre.org/tactics/TA0003/" },
+      "technique": [
+        { "id": "T1136", "name": "Create Account", "reference": "https://attack.mitre.org/techniques/T1136/",
+          "subtechnique": [ { "id": "T1136.001", "name": "Local Account", "reference": "https://attack.mitre.org/techniques/T1136/001/" } ] }
+      ]
+    }
+  ],
+  "false_positives": ["Legitimate onboarding or automation that provisions local accounts (should be allow-listed)."],
+  "note": "### Triage\n- Who ran it (`user.name` / parent session) and what is the new account name?\n- New UID 0 or supplementary group `root`/`sudo`/`wheel`? Escalate.\n- Correlate with a preceding successful SSH login."
+}

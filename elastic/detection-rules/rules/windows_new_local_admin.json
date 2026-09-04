@@ -1,0 +1,29 @@
+{
+  "rule_id": "soc-win-new-local-admin",
+  "name": "Local Account Created or Added to Administrators (Windows)",
+  "description": "A local user was created (4720) or added to the local Administrators / Remote Desktop Users group (4732), or net.exe/net1.exe was used to do so. Common persistence + privilege step.",
+  "type": "query",
+  "language": "kuery",
+  "index": ["logs-windows.sysmon_operational-*", "logs-system.security-*", "winlogbeat-*"],
+  "query": "event.code:\"4720\" or (event.code:\"4732\" and group.name:(\"Administrators\" or \"Remote Desktop Users\" or \"Backup Operators\")) or (event.provider:\"Microsoft-Windows-Sysmon\" and event.code:\"1\" and process.name:(\"net.exe\" or \"net1.exe\") and process.command_line:(*\"user \"* and *\"/add\"* or *\"localgroup administrators\"*))",
+  "severity": "medium",
+  "risk_score": 54,
+  "from": "now-9m",
+  "interval": "5m",
+  "max_signals": 100,
+  "enabled": true,
+  "tags": ["SOC-in-a-Box", "OS: Windows", "Tactic: Persistence", "Tactic: Privilege Escalation", "Data Source: Windows Security Event Logs"],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": { "id": "TA0003", "name": "Persistence", "reference": "https://attack.mitre.org/tactics/TA0003/" },
+      "technique": [
+        { "id": "T1136", "name": "Create Account", "reference": "https://attack.mitre.org/techniques/T1136/",
+          "subtechnique": [ { "id": "T1136.001", "name": "Local Account", "reference": "https://attack.mitre.org/techniques/T1136/001/" } ] },
+        { "id": "T1098", "name": "Account Manipulation", "reference": "https://attack.mitre.org/techniques/T1098/" }
+      ]
+    }
+  ],
+  "false_positives": ["Sanctioned local account provisioning by imaging/onboarding automation."],
+  "note": "### Triage\n- Which account, by whom, on which host?\n- New account immediately added to Administrators is high confidence — correlate with remote logons."
+}

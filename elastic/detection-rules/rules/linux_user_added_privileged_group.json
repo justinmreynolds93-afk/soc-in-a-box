@@ -1,0 +1,25 @@
+{
+  "rule_id": "soc-linux-user-added-privileged-group",
+  "name": "User Added to Privileged Group (Linux)",
+  "description": "An account was added to sudo, wheel, root, admin, or docker. Grants privilege escalation and is a frequent step after a foothold.",
+  "type": "query",
+  "language": "kuery",
+  "index": ["logs-system.auth-*"],
+  "query": "event.dataset:\"system.auth\" and process.name:(\"usermod\" or \"gpasswd\") and message:(\"sudo\" or \"wheel\" or \"root\" or \"admin\" or \"docker\" or \"adm\")",
+  "severity": "medium",
+  "risk_score": 54,
+  "from": "now-9m",
+  "interval": "5m",
+  "max_signals": 100,
+  "enabled": true,
+  "tags": ["SOC-in-a-Box", "OS: Linux", "Tactic: Persistence", "Tactic: Privilege Escalation", "Data Source: System"],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": { "id": "TA0004", "name": "Privilege Escalation", "reference": "https://attack.mitre.org/tactics/TA0004/" },
+      "technique": [ { "id": "T1098", "name": "Account Manipulation", "reference": "https://attack.mitre.org/techniques/T1098/" } ]
+    }
+  ],
+  "false_positives": ["Sanctioned administration and onboarding."],
+  "note": "### Triage\n- Which account, which group, and who made the change?\n- Pair with `soc-linux-new-local-user` — new account + immediate privileged-group add is high confidence."
+}

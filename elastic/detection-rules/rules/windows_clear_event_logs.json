@@ -1,0 +1,28 @@
+{
+  "rule_id": "soc-win-clear-event-logs",
+  "name": "Windows Event Logs Cleared",
+  "description": "The Security or System event log was cleared (event 1102 / 104) or wevtutil/Clear-EventLog/PowerShell was used to clear logs. A deliberate anti-forensics action.",
+  "type": "query",
+  "language": "kuery",
+  "index": ["logs-windows.sysmon_operational-*", "logs-system.security-*", "logs-windows.forwarded-*", "winlogbeat-*"],
+  "query": "event.code:(\"1102\" or \"104\") or (event.provider:\"Microsoft-Windows-Sysmon\" and event.code:\"1\" and process.name:(\"wevtutil.exe\" or \"powershell.exe\" or \"pwsh.exe\") and process.command_line:(*\"cl \"* or *\"clear-log\"* or *Clear-EventLog* or *\"Remove-EventLog\"* or *\"Limit-EventLog\"*))",
+  "severity": "high",
+  "risk_score": 73,
+  "from": "now-9m",
+  "interval": "5m",
+  "max_signals": 100,
+  "enabled": true,
+  "tags": ["SOC-in-a-Box", "OS: Windows", "Tactic: Defense Evasion", "Data Source: Windows Security Event Logs"],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": { "id": "TA0005", "name": "Defense Evasion", "reference": "https://attack.mitre.org/tactics/TA0005/" },
+      "technique": [
+        { "id": "T1070", "name": "Indicator Removal", "reference": "https://attack.mitre.org/techniques/T1070/",
+          "subtechnique": [ { "id": "T1070.001", "name": "Clear Windows Event Logs", "reference": "https://attack.mitre.org/techniques/T1070/001/" } ] }
+      ]
+    }
+  ],
+  "false_positives": ["Rare legitimate admin maintenance — should be scheduled and communicated."],
+  "note": "### Triage\n- Identify `user.name` and the host. Was there a change window?\n- Pull surrounding events from other sources (Sysmon, forwarded logs, EDR) that were not cleared.\n- Treat as an active-intrusion indicator until proven otherwise."
+}

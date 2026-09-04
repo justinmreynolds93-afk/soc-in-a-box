@@ -1,0 +1,37 @@
+{
+  "rule_id": "soc-network-dns-high-unique-subdomains",
+  "name": "High Volume of Unique Subdomains for One Parent Domain (Possible DNS Tunneling / DGA)",
+  "description": "A single internal host resolves an unusually high number of distinct subdomains under one registered domain in a short window — the signature of DNS tunneling for C2/exfil, or algorithmically generated domains.",
+  "type": "threshold",
+  "language": "kuery",
+  "index": ["logs-network_traffic.dns-*"],
+  "query": "event.dataset:\"network_traffic.dns\" and dns.question.name:*",
+  "threshold": {
+    "field": ["source.ip", "dns.question.registered_domain"],
+    "value": 1,
+    "cardinality": [ { "field": "dns.question.name", "value": 40 } ]
+  },
+  "severity": "medium",
+  "risk_score": 50,
+  "from": "now-16m",
+  "interval": "10m",
+  "max_signals": 100,
+  "enabled": true,
+  "tags": ["SOC-in-a-Box", "Domain: Network", "Tactic: Command and Control", "Tactic: Exfiltration", "Data Source: Network Packet Capture"],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": { "id": "TA0011", "name": "Command and Control", "reference": "https://attack.mitre.org/tactics/TA0011/" },
+      "technique": [
+        { "id": "T1071", "name": "Application Layer Protocol", "reference": "https://attack.mitre.org/techniques/T1071/",
+          "subtechnique": [ { "id": "T1071.004", "name": "DNS", "reference": "https://attack.mitre.org/techniques/T1071/004/" } ] },
+        { "id": "T1568", "name": "Dynamic Resolution", "reference": "https://attack.mitre.org/techniques/T1568/" }
+      ]
+    }
+  ],
+  "false_positives": [
+    "CDNs, telemetry, and anti-spam services that legitimately use many subdomains (allow-list the registered domain).",
+    "Corporate DNS resolvers aggregating many clients (exclude the resolver IP)."
+  ],
+  "note": "### Triage\n- Look at `dns.question.registered_domain` — recognisable service or random-looking?\n- Inspect subdomain length/entropy and whether TXT/NULL record types are used.\n- Identify the process on `source.ip` from host telemetry."
+}

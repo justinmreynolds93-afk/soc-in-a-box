@@ -59,8 +59,8 @@ flowchart TB
 
 | Stage | Mechanism |
 |---|---|
-| Endpoint collection | Elastic Agent (Fleet-managed) with the Windows, System, and Sysmon integrations; auditd/journald on Linux |
-| Network collection | Suricata in AF_PACKET mode on the lab bridge; `eve.json` tailed by an Elastic Agent |
+| Endpoint collection | Elastic Agent (Fleet-managed). Linux victim: System integration (auth, syslog). Windows victim: System + Windows event logs + Sysmon |
+| Network collection | Elastic Agent **Network Packet Capture** integration on the Linux victim — flows + DNS (Suricata was dropped: sniffing other containers' unicast off a Linux bridge is unreliable) |
 | Transport | Agent → Fleet Server → Elasticsearch over TLS; data streams `logs-*`, `metrics-*` |
 | Detection | Elastic detection engine — prebuilt rules (curated subset) + custom rules from `elastic/detection-rules/` |
 | Triage | Kibana Security → Alerts, Timeline, Cases |
@@ -69,7 +69,9 @@ flowchart TB
 
 ## Key design decisions
 
-- **Single-node Elasticsearch.** A cluster adds nothing for a lab and doubles the RAM. `discovery.type=single-node`, 2 GB heap, `vm.max_map_count=262144` (see [windows-setup.md](windows-setup.md)).
+- **Single-node Elasticsearch.** A cluster adds nothing for a lab and doubles the RAM. `discovery.type=single-node`, ~1.5 GB heap (Docker set to 8 GB), `vm.max_map_count` handled by a privileged one-shot container.
+- **Agents skip TLS verification to Elasticsearch** (`xpack.fleet.outputs[].ssl` → CA path; the fleet default output). Traffic is still encrypted and stays on `soc-net`. A lab simplification — a real deployment pins the CA or a fingerprint.
+- **No EDR on the Linux victim.** Elastic Defend's kernel probes are unreliable in the Docker Desktop WSL2 kernel and `auditd` can't own the kernel audit socket from a container. Consequence: Linux process/file techniques are covered by custom rules against auth/syslog/netflow, and by the Windows victim (Sysmon). See [detection-coverage.md](detection-coverage.md).
 - **Security + TLS on from the start.** Fleet and the detection engine require it, and "secure by default" is the point of the exercise. A bootstrap container mints the CA, node certs, and service tokens on first run.
 - **Fleet-managed agents, not standalone Beats.** Matches how modern Elastic SOCs run and keeps integration config declarative.
 - **Kibana Cases as the default; TheHive optional.** Native tooling covers the workflow at zero extra RAM; TheHive + Cortex is there to demonstrate the SOAR-adjacent pattern when resources allow.
