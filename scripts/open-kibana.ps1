@@ -26,11 +26,12 @@ if ($Trust) {
 }
 
 $base = "https://localhost:$port/app"
-$pages = @{
-    'rules'     = "$base/security/rules/management"
-    'alerts'    = "$base/security/alerts"
-    'cases'     = "$base/security/cases"
-    'dashboards' = "$base/security/dashboards"
+# Ordered so the tabs open left-to-right in a sensible sequence.
+$pages = [ordered]@{
+    'fleet-agents' = "$base/fleet/agents"
+    'rules'        = "$base/security/rules/management?rulesTable=(source:custom)"
+    'discover'     = "$base/discover"
+    'alerts'       = "$base/security/alerts"
 }
 foreach ($k in $pages.Keys) {
     Write-Host "  $k  ->  $($pages[$k])"
