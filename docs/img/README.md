@@ -1,7 +1,12 @@
 # docs/img/
 
-Screenshots and GIFs for the README and `docs/demo.md`. Capture after a scenario
-run (Kibana is at `https://localhost:5601`, self-signed cert):
+Screenshots and GIFs for the README and `docs/demo.md`.
+
+```powershell
+.\scripts\open-kibana.ps1 -Trust   # trusts the lab CA, opens the 4 pages below
+```
+
+Capture after a scenario run:
 
 - `rules.png` — Security → Rules, filtered to tag `SOC-in-a-Box`
 - `alerts.png` — Security → Alerts after `linux-intrusion.sh`

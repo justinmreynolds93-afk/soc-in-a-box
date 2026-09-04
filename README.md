@@ -7,9 +7,10 @@ with every rule, playbook, and dashboard version-controlled and CI-tested.
 
 Built to run on a single 16 GB workstation.
 
-![CI](https://img.shields.io/badge/detection--ci-passing-brightgreen)
-![ATT&CK coverage](https://img.shields.io/badge/scenario%20coverage-5%2F11%20(45%25)-yellow)
-![rules](https://img.shields.io/badge/custom%20rules-13-blue)
+[![detection-ci](https://github.com/justinmreynolds93-afk/soc-in-a-box/actions/workflows/detection-ci.yml/badge.svg)](https://github.com/justinmreynolds93-afk/soc-in-a-box/actions/workflows/detection-ci.yml)
+[![lint](https://github.com/justinmreynolds93-afk/soc-in-a-box/actions/workflows/lint.yml/badge.svg)](https://github.com/justinmreynolds93-afk/soc-in-a-box/actions/workflows/lint.yml)
+![scenario coverage](https://img.shields.io/badge/scenario%20coverage-5%2F11%20(45%25)-yellow)
+![custom rules](https://img.shields.io/badge/custom%20rules-13-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 > **Status:** `v0.1` — M0–M7 built and running. Linux telemetry + custom
