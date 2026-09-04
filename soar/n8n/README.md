@@ -2,14 +2,20 @@
 
 ## Import the workflow
 
-1. `make soar` → open `http://localhost:5678`, create the owner account.
-2. Workflows → Import from File → `soc-alert-triage.json`.
-3. Add a **Basic Auth** credential (`elastic` / your `ELASTIC_PASSWORD`) and bind
+`make soar` (or `.\soc.ps1 soar`) starts n8n **and** imports
+`soc-alert-triage.json` via `scripts/import-soar-workflow.ps1`. The lab runs n8n
+in single-user mode (`N8N_USER_MANAGEMENT_DISABLED=true`) so there's no setup
+wizard.
+
+Then, once, in the UI (`http://localhost:5678`):
+
+1. Add a **Basic Auth** credential (`elastic` / your `ELASTIC_PASSWORD`) and bind
    it to the *Kibana: open case* node.
-4. API keys and the Slack webhook are read from the environment — set them in
-   `.env` before `make soar` (see `.env.example`). Blank keys just skip that step.
-5. Activate the workflow. Copy the production webhook URL
-   (`http://n8n:5678/webhook/soc-alert` from inside the lab network).
+2. **Activate** the workflow.
+
+API keys and the Slack webhook are read from the environment — set them in `.env`
+before `make soar` (see `.env.example`); blank keys just skip that step. The
+production webhook is `http://n8n:5678/webhook/soc-alert` (from inside the lab).
 
 ## Wire Kibana to it
 

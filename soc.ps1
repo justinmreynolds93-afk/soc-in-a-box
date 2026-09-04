@@ -62,7 +62,10 @@ SOC-in-a-Box tasks
     'telemetry-down' { dc ($Tele + @('stop', 'linux-victim')) }
     'attack'         { dc ($Atk + @('up', '-d')) }
     'attack-down'    { dc ($Atk + @('stop', 'caldera', 'attacker')) }
-    'soar'           { dc ($Soar + @('up', '-d')) }
+    'soar'           {
+        dc ($Soar + @('up', '-d', '--build'))
+        & pwsh -NoProfile -File "$PSScriptRoot/scripts/import-soar-workflow.ps1"
+    }
     'soar-down'      { dc ($Soar + @('stop', 'n8n')) }
     'casemgmt'       { dc ($Case + @('up', '-d')) }
     'casemgmt-down'  { dc ($Case + @('stop', 'thehive', 'cortex')) }

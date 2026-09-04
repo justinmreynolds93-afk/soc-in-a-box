@@ -45,8 +45,9 @@ attack: ## Spin up Caldera + attacker (on demand)
 attack-down: ## Tear down attack services
 	$(COMPOSE) $(ATK) stop caldera attacker
 
-soar: ## Start n8n
-	$(COMPOSE) $(SOAR) up -d
+soar: ## Start n8n + import the triage workflow
+	$(COMPOSE) $(SOAR) up -d --build
+	pwsh -NoProfile -File scripts/import-soar-workflow.ps1
 
 soar-down: ## Stop n8n
 	$(COMPOSE) $(SOAR) stop n8n
