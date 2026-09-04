@@ -1,20 +1,20 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Install Elastic's prebuilt detection rules, then enable a curated subset that
-    matches the telemetry this lab actually collects (Linux system/auth, network
-    traffic, and — once the Windows victim is up — Windows event logs).
-.PARAMETER Tags
-    Rule tags to include. Default covers Linux + Network + Windows.
+    Install Elastic's prebuilt detection rules, then enable only the ones whose
+    index patterns overlap the telemetry this lab actually ingests. Most prebuilt
+    Linux rules target Elastic Defend / auditd_manager / EDR indices we do not
+    have; enabling them just produces "partial failure" noise. This keeps the
+    enabled set honest — see docs/detection-coverage.md.
+.PARAMETER IncludeWindows
+    Also enable Windows Sysmon/event-log rules (only useful once the Windows
+    victim VM is enrolled).
 .PARAMETER MaxRules
-    Safety cap so an 8 GB host is not buried under rule executions.
-.EXAMPLE
-    .\scripts\enable-detection-rules.ps1
-    .\scripts\enable-detection-rules.ps1 -Tags 'OS: Linux','Domain: Network' -MaxRules 60
+    Safety cap for an 8 GB host.
 #>
 param(
-    [string[]]$Tags = @('OS: Linux', 'Domain: Network', 'OS: Windows'),
-    [int]$MaxRules = 90
+    [switch]$IncludeWindows,
+    [int]$MaxRules = 120
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
@@ -29,40 +29,63 @@ $h   = @{
     'Content-Type' = 'application/json'
 }
 
-Write-Host "[*] installing prebuilt rules (this can take a minute)"
+# index-pattern prefixes we actually ingest (extend as integrations are added)
+$havePatterns = @('logs-system.', 'logs-network_traffic.', 'metrics-system.', 'logs-elastic_agent.')
+if ($IncludeWindows) {
+    $havePatterns += @('logs-windows.', 'logs-system.security', 'winlogbeat-')
+}
+
+function RuleIsCompatible($rule) {
+    if (-not $rule.index) { return $false }         # ES|QL / ML rules — skip for now
+    foreach ($idx in $rule.index) {
+        foreach ($p in $havePatterns) {
+            if ($idx.StartsWith($p) -or $idx.StartsWith($p.TrimEnd('.'))) { return $true }
+        }
+    }
+    return $false
+}
+
+Write-Host "[*] installing prebuilt rules"
 try {
     Invoke-RestMethod -Method Put "$kb/api/detection_engine/rules/prepackaged" -Headers $h -SkipCertificateCheck | Out-Null
 } catch {
-    # newer stacks: internal perform-installation endpoint
     Invoke-RestMethod -Method Post "$kb/internal/detection_engine/prebuilt_rules/installation/_perform" `
         -Headers ($h + @{ 'elastic-api-version' = '1' }) -Body '{"mode":"ALL_RULES"}' -SkipCertificateCheck | Out-Null
 }
-
 $status = Invoke-RestMethod "$kb/api/detection_engine/rules/prepackaged/_status" -Headers $h -SkipCertificateCheck
 Write-Host "[+] prebuilt rules installed: $($status.rules_installed)"
 
-# ── pick the curated subset ──────────────────────────────────────────────────
-$wanted = [System.Collections.Generic.List[string]]::new()
-foreach ($tag in $Tags) {
-    $page = 1
-    do {
-        $resp = Invoke-RestMethod "$kb/api/detection_engine/rules/_find?per_page=100&page=$page&filter=alert.attributes.tags:%22$([uri]::EscapeDataString($tag))%22" `
-                -Headers $h -SkipCertificateCheck
-        foreach ($r in $resp.data) {
-            if ($r.type -in 'query', 'eql', 'threshold', 'new_terms' -and -not $r.enabled) {
-                if (-not $wanted.Contains($r.id)) { $wanted.Add($r.id) }
-            }
-        }
-        $page++
-    } while ($resp.data.Count -eq 100 -and $wanted.Count -lt ($MaxRules * 3))
+# walk every prebuilt rule, split by compatibility
+$enable = [System.Collections.Generic.List[string]]::new()
+$disable = [System.Collections.Generic.List[string]]::new()
+$page = 1
+do {
+    $resp = Invoke-RestMethod "$kb/api/detection_engine/rules/_find?per_page=200&page=$page&filter=alert.attributes.tags:%22__internal_immutable:true%22" -Headers $h -SkipCertificateCheck
+    if (-not $resp.data) {
+        $resp = Invoke-RestMethod "$kb/api/detection_engine/rules/_find?per_page=200&page=$page" -Headers $h -SkipCertificateCheck
+    }
+    foreach ($r in $resp.data) {
+        if ($r.immutable -ne $true) { continue }
+        if ($r.type -notin 'query', 'eql', 'threshold', 'new_terms') { continue }
+        if (RuleIsCompatible $r) { $enable.Add($r.id) } elseif ($r.enabled) { $disable.Add($r.id) }
+    }
+    $page++
+} while ($resp.data.Count -eq 200)
+
+$enable = $enable | Select-Object -First $MaxRules
+Write-Host "[*] compatible with our telemetry: $($enable.Count)   (disabling $($disable.Count) incompatible)"
+
+function Bulk($action, $ids) {
+    for ($i = 0; $i -lt $ids.Count; $i += 100) {
+        $chunk = $ids[$i..([Math]::Min($i + 99, $ids.Count - 1))]
+        $body = @{ action = $action; ids = @($chunk) } | ConvertTo-Json
+        Invoke-RestMethod -Method Post "$kb/api/detection_engine/rules/_bulk_action" -Headers $h -Body $body -SkipCertificateCheck | Out-Null
+    }
 }
+if ($disable.Count) { Bulk 'disable' $disable }
+if ($enable.Count)  { Bulk 'enable'  $enable }
 
-$ids = $wanted | Select-Object -First $MaxRules
-Write-Host "[*] enabling $($ids.Count) rules (cap $MaxRules)"
-
-$body = @{ action = 'enable'; ids = $ids } | ConvertTo-Json
-$res = Invoke-RestMethod -Method Post "$kb/api/detection_engine/rules/_bulk_action" -Headers $h -Body $body -SkipCertificateCheck
-Write-Host "[+] enabled: $($res.attributes.summary.succeeded) / failed: $($res.attributes.summary.failed)"
-
-$enabled = (Invoke-RestMethod "$kb/api/detection_engine/rules/_find?per_page=1&filter=alert.attributes.enabled:true" -Headers $h -SkipCertificateCheck).total
-Write-Host "[+] total enabled detection rules: $enabled"
+Start-Sleep 3
+$en = (Invoke-RestMethod "$kb/api/detection_engine/rules/_find?per_page=1&filter=alert.attributes.enabled:true" -Headers $h -SkipCertificateCheck).total
+Write-Host "[+] enabled detection rules now: $en"
+Write-Host "    (run scripts/deploy-detections.ps1 for the custom rules tuned to this telemetry)"

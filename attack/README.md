@@ -23,15 +23,27 @@ per-technique tests.
 
 ## `scenarios/`
 
-Hand-written multi-stage kill chains (`bash` / `pwsh`) that tell a story end to
-end: initial foothold → discovery → credential access → lateral movement →
-collection → exfil / impact. Each scenario:
+Hand-written multi-stage kill chains that tell a story end to end. Each prints
+the ATT&CK techniques it runs, pauses between stages, and writes a JSONL run log
+to `scenarios/runs/` for the gap report.
 
-1. prints the ATT&CK techniques it will execute
-2. runs them with pauses between stages
-3. writes a run log to `scenarios/runs/` for correlating against alerts
+| Script | From | Produces |
+|---|---|---|
+| `linux-intrusion.sh` | host / `docker exec` | 11 techniques: brute force → valid accounts → discovery → cred access → 2× persistence → privesc → tool transfer → C2/exfil → cleanup |
+| `network-recon.sh` | `attacker` container | nmap, `nmap -sV -sC`, hydra SSH spray, HTTP beacon — distinct source IP |
+
+```bash
+DWELL=25 bash attack/scenarios/linux-intrusion.sh
+DWELL=25 STAGES="T1110.001 T1136.001" bash attack/scenarios/linux-intrusion.sh   # subset
+```
 
 ## Output
 
-After a run, `scripts/detection-gap-report.py` (M3) compares executed techniques
-against triggered detection rules and writes the gap list that drives M4.
+```
+pwsh scripts/detection-gap-report.ps1            # newest run
+pwsh scripts/detection-gap-report.ps1 -RunLog attack/scenarios/runs/<file>.jsonl
+```
+
+Correlates executed techniques against the alerts they produced and prints an
+ATT&CK coverage table + the gap list. Results and the coverage story live in
+[`../docs/detection-coverage.md`](../docs/detection-coverage.md).

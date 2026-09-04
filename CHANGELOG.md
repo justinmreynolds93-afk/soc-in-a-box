@@ -5,6 +5,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — M4 (detection engineering)
+- `elastic/detection-rules/rules/*.json` — 13 custom rules as code (Kibana rule
+  bodies, one file per rule), 8 Linux/Network + 5 Windows, each MITRE-mapped with
+  triage notes and false-positive guidance
+- `scripts/deploy-detections.ps1` — validate + import (`-Validate` for CI)
+- `scripts/generate-navigator-layer.ps1` — ATT&CK Navigator layer from enabled rules
+- `enable-detection-rules.ps1` rewritten to enable prebuilt rules **by index
+  compatibility** (disable the ~85 that need EDR/auditd indices we don't have)
+- `docs/detections/*.md` — per-detection writeups
+- `docs/detection-coverage.md` — the coverage story + gap table
+
+### Added — M3 (adversary emulation)
+- `attack/scenarios/linux-intrusion.sh` — 11-technique kill chain vs the victim,
+  writes a run log for the gap report
+- `attack/scenarios/network-recon.sh` — nmap/hydra/beacon from the attacker box
+- `attack/atomic/run.sh` + `techniques.yml` — Atomic Red Team runner (in-victim)
+- `compose/compose.attack.yml` + `compose/attacker/` — alpine attacker + Caldera
+- `scripts/detection-gap-report.ps1` — correlate a run against the alerts it produced
+- Finding: with System + Network telemetry only, most prebuilt Linux rules can't
+  run; custom rules + the Windows victim close the gap (see detection-coverage.md)
+
+### Verified (M3/M4)
+- Custom rules fire on real attack telemetry: SSH brute force, brute-force
+  success sequence, new local user, privileged-group add, crontab replace,
+  outbound beaconing
+
 ### Added — M2 (telemetry)
 - `compose/compose.telemetry.yml` + `compose/victim-linux/`: an Ubuntu victim
   container (SSH, rsyslog) running a Fleet-managed Elastic Agent — System logs,

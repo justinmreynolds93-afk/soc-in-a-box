@@ -1,0 +1,51 @@
+# Curated Atomic Red Team tests this lab runs, grouped by tactic.
+# Linux tests target the linux-victim container; Windows tests target the
+# Windows victim VM (vm/). Only tests whose telemetry this lab can actually
+# collect are listed — see docs/detection-coverage.md for the mapping.
+
+linux:
+  execution:
+    - T1059.004-1     # Unix shell execution
+    - T1059.006-1     # Python
+  persistence:
+    - T1053.003-1     # cron - add job to user crontab
+    - T1098-1         # add user to group
+    - T1136.001-1     # create local account
+  privilege_escalation:
+    - T1548.003-1     # sudoers file
+    - T1548.001-1     # setuid/setgid
+  defense_evasion:
+    - T1070.002-1     # clear /var/log
+    - T1070.003-1     # clear bash history
+    - T1222.002-1     # chmod/chown
+  credential_access:
+    - T1003.008-1     # /etc/passwd & /etc/shadow
+    - T1552.001-1     # credentials in files
+  discovery:
+    - T1082-1         # system information
+    - T1087.001-1     # local account discovery
+    - T1046-1         # network service discovery
+  command_and_control:
+    - T1071.001-1     # curl/wget check-in
+    - T1105-1         # ingress tool transfer
+
+windows:
+  execution:
+    - T1059.001-1     # PowerShell
+    - T1059.003-1     # cmd
+    - T1204.002       # user execution
+  persistence:
+    - T1547.001-1     # Run key
+    - T1053.005-1     # scheduled task
+    - T1136.001-4     # net user /add
+  defense_evasion:
+    - T1070.001-1     # clear Windows event logs
+    - T1562.001-1     # disable Defender
+    - T1027-1         # obfuscated files
+  credential_access:
+    - T1003.001-1     # LSASS memory (comsvcs)
+    - T1552.001-1     # creds in files
+  discovery:
+    - T1018-1         # remote system discovery
+    - T1082-1         # system information
+    - T1057-1         # process discovery

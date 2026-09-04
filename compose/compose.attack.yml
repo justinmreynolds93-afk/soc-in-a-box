@@ -1,0 +1,46 @@
+name: soc-in-a-box
+
+# ─────────────────────────────────────────────────────────────────────────────
+# attack overlay — adversary emulation. ON DEMAND ONLY.
+#   attacker   alpine + nmap/hydra/ncat, on soc-net with the victims
+#   caldera    MITRE Caldera adversary-emulation server (heavy ~1 GB)
+#
+# On an 8 GB Docker VM, stop the victim's monitoring-heavy neighbours first or
+# raise Docker's memory. Caldera is optional — the scripted scenarios in
+# attack/scenarios/ need only `attacker` (and often just docker exec).
+#
+#   make attack        |  .\soc.ps1 attack
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  attacker:
+    build: ./attacker
+    image: soc-in-a-box/attacker:latest
+    hostname: attacker
+    depends_on:
+      fleet-server:
+        condition: service_healthy
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    mem_limit: 268435456   # 256 MB
+    tty: true
+
+  caldera:
+    image: ghcr.io/mitre/caldera:5.1.0
+    hostname: caldera
+    profiles: ["caldera"]           # opt-in even within the attack overlay
+    ports:
+      - "8888:8888"
+      - "7010:7010"
+      - "7011:7011/udp"
+      - "8853:8853"
+    environment:
+      - CALDERA_PORT=8888
+    volumes:
+      - calderadata:/usr/src/app/data
+    mem_limit: 1610612736  # 1.5 GB
+    restart: unless-stopped
+
+volumes:
+  calderadata:

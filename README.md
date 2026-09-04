@@ -139,8 +139,8 @@ soc-in-a-box/
 - [x] **M0** — Repo scaffold, docs skeleton, architecture diagram
 - [x] **M1** — Elastic core up via one command (TLS on, Fleet Server running)
 - [x] **M2** — Telemetry: Linux victim + Elastic Agent (system/network), Fleet policies as code, ~90 curated prebuilt rules
-- [ ] **M3** — Adversary emulation: Atomic Red Team + Caldera + scripted kill chains; detection-gap list
-- [ ] **M4** — 15–20 custom detections + Sigma pipeline + ATT&CK Navigator layer + writeups
+- [x] **M3** — Adversary emulation: scripted kill chains + Atomic Red Team + Caldera; gap report tooling
+- [~] **M4** — 13 custom detections (as code, MITRE-mapped, writeups) + ATT&CK Navigator generator; Sigma pipeline pending
 - [ ] **M5** — Detection CI: rule validation + event-replay regression harness + coverage badge
 - [ ] **M6** — SOAR playbook + IR runbooks (+ optional TheHive profile)
 - [ ] **M7** — Showcase polish: final diagram, demo GIFs, writeup, `v1.0`
