@@ -7,17 +7,26 @@ server.publicBaseUrl: "https://localhost:5601"
 
 telemetry.optIn: false
 
-# Where Fleet-managed agents ship data. Points at the container, not localhost.
-# Container agents all mount the lab CA at /certs/ca/ca.crt.
+# Where Fleet-managed agents ship data. host.docker.internal:9200 resolves from
+# BOTH the containers (Docker Desktop injects it) and the Docker host, so one
+# output serves the container victims and a host agent (the Windows victim = this
+# machine). Per-policy outputs need Platinum, so this is the single default.
+# TLS verification is off: the lab cert has no SAN for host.docker.internal.
 xpack.fleet.outputs:
   - name: default
     id: fleet-default-output
     type: elasticsearch
-    hosts: ["https://elasticsearch:9200"]
+    hosts: ["https://host.docker.internal:9200"]
     is_default: true
     is_default_monitoring: true
     ssl:
-      certificate_authorities: ["/certs/ca/ca.crt"]
+      verification_mode: none
+
+# Fleet Server is reachable from containers as fleet-server:8220 and from the
+# Docker host as host.docker.internal:8220.
+xpack.fleet.agents.fleet_server.hosts:
+  - "https://fleet-server:8220"
+  - "https://host.docker.internal:8220"
 
 xpack.fleet.packages:
   - name: fleet_server
