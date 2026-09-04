@@ -1,4 +1,4 @@
-# 30-agent.ps1 — install and Fleet-enroll the Elastic Agent on the Windows victim.
+﻿# 30-agent.ps1 - install and Fleet-enroll the Elastic Agent on the Windows victim.
 # Run elevated. Params come from the lab .env / Fleet UI.
 param(
     [Parameter(Mandatory)] [string]$FleetUrl,          # e.g. https://<host-ip>:8220
@@ -30,4 +30,4 @@ Push-Location (Join-Path $work $pkg)
 Pop-Location
 
 & 'C:\Program Files\Elastic\Agent\elastic-agent.exe' status
-Write-Host 'agent enrolled — check Fleet > Agents'
+Write-Host 'agent enrolled - check Fleet > Agents'

@@ -1,4 +1,4 @@
-# 40-atomics.ps1 — install Invoke-AtomicRedTeam + the atomics folder. Run elevated.
+﻿# 40-atomics.ps1 - install Invoke-AtomicRedTeam + the atomics folder. Run elevated.
 # Executes NOTHING. Tests are launched from attack/atomic/ against this VM only.
 $ErrorActionPreference = 'Stop'
 

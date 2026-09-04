@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Import soar/n8n/soc-alert-triage.json into the running n8n container.
@@ -10,7 +10,7 @@ Set-Location $repo
 
 $container = 'soc-in-a-box-n8n-1'
 if (-not (docker ps --filter "name=$container" --format '{{.Names}}')) {
-    Write-Host "n8n is not running — start it with 'make soar' / '.\\soc.ps1 soar'"
+    Write-Host "n8n is not running - start it with 'make soar' / '.\\soc.ps1 soar'"
     exit 1
 }
 

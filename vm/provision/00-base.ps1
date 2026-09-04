@@ -1,4 +1,4 @@
-# 00-base.ps1 — baseline prep for the Windows victim VM. Run elevated.
+﻿# 00-base.ps1 - baseline prep for the Windows victim VM. Run elevated.
 $ErrorActionPreference = 'Stop'
 
 Write-Host '== timezone + basic settings'
@@ -18,4 +18,4 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 choco install -y git 7zip sysinternals
 
-Write-Host 'base provisioning complete — run 10-audit, 20-sysmon, 30-agent, 40-atomics next'
+Write-Host 'base provisioning complete - run 10-audit, 20-sysmon, 30-agent, 40-atomics next'

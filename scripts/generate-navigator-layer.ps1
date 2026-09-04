@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Build a MITRE ATT&CK Navigator layer from every enabled detection rule
@@ -40,7 +40,7 @@ $layerTechniques = foreach ($id in $techniques.Keys) {
     [ordered]@{
         techniqueID = $id
         score       = $t.count
-        comment     = "$($t.count) rule(s)$(if ($t.custom) { ' — incl. custom' })"
+        comment     = "$($t.count) rule(s)$(if ($t.custom) { ' - incl. custom' })"
         color       = if ($t.custom) { '#7b2fbf' } else { $null }
         enabled     = $true
     }
@@ -66,4 +66,4 @@ $layer = [ordered]@{
 
 $out = 'docs/attack-navigator-layer.json'
 $layer | ConvertTo-Json -Depth 12 | Set-Content $out -Encoding utf8
-Write-Host "[+] $out — $($techniques.Count) techniques, max depth $max"
+Write-Host "[+] $out - $($techniques.Count) techniques, max depth $max"

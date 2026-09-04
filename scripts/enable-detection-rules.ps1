@@ -1,11 +1,11 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Install Elastic's prebuilt detection rules, then enable only the ones whose
     index patterns overlap the telemetry this lab actually ingests. Most prebuilt
     Linux rules target Elastic Defend / auditd_manager / EDR indices we do not
     have; enabling them just produces "partial failure" noise. This keeps the
-    enabled set honest — see docs/detection-coverage.md.
+    enabled set honest - see docs/detection-coverage.md.
 .PARAMETER IncludeWindows
     Also enable Windows Sysmon/event-log rules (only useful once the Windows
     victim VM is enrolled).
@@ -36,7 +36,7 @@ if ($IncludeWindows) {
 }
 
 function RuleIsCompatible($rule) {
-    if (-not $rule.index) { return $false }         # ES|QL / ML rules — skip for now
+    if (-not $rule.index) { return $false }         # ES|QL / ML rules - skip for now
     foreach ($idx in $rule.index) {
         foreach ($p in $havePatterns) {
             if ($idx.StartsWith($p) -or $idx.StartsWith($p.TrimEnd('.'))) { return $true }

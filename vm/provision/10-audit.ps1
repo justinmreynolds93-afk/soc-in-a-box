@@ -1,4 +1,4 @@
-# 10-audit.ps1 — Windows audit configuration for the victim VM.
+﻿# 10-audit.ps1 - Windows audit configuration for the victim VM.
 # Enables the event channels detections rely on. Run elevated.
 $ErrorActionPreference = 'Stop'
 

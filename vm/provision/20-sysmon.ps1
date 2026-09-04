@@ -1,4 +1,4 @@
-# 20-sysmon.ps1 — install Sysmon with a community modular config. Run elevated.
+﻿# 20-sysmon.ps1 - install Sysmon with a community modular config. Run elevated.
 $ErrorActionPreference = 'Stop'
 $work = Join-Path $env:TEMP 'sysmon'
 New-Item -ItemType Directory -Force -Path $work | Out-Null
@@ -22,4 +22,4 @@ if (& $sysmon -c 2>$null | Select-String 'not installed') {
 Write-Host '== verifying'
 Get-Service Sysmon64 | Format-Table Name, Status
 wevtutil sl 'Microsoft-Windows-Sysmon/Operational' /ms:1073741824
-Write-Host 'Sysmon installed — events in Microsoft-Windows-Sysmon/Operational'
+Write-Host 'Sysmon installed - events in Microsoft-Windows-Sysmon/Operational'

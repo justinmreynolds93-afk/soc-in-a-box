@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Pre-flight + bring-up for the Elastic core (M1).
@@ -21,7 +21,7 @@ function Info($m) { Write-Host "[*] $m" -ForegroundColor Cyan }
 function Ok($m)   { Write-Host "[+] $m" -ForegroundColor Green }
 function Die($m)  { Write-Host "[!] $m" -ForegroundColor Red; exit 1 }
 
-# ── 1. Docker ────────────────────────────────────────────────────────────────
+# -- 1. Docker ----------------------------------------------------------------
 Info "checking Docker"
 try { $srv = docker info --format '{{.ServerVersion}}' 2>$null }
 catch { $srv = $null }
@@ -35,7 +35,7 @@ if ($memGB -lt 6) {
 }
 Ok "Docker memory ${memGB} GB"
 
-# ── 2. .env ──────────────────────────────────────────────────────────────────
+# -- 2. .env ------------------------------------------------------------------
 function New-Secret([int]$len) {
     $chars = [char[]]((48..57) + (65..90) + (97..122))
     -join (1..$len | ForEach-Object { $chars | Get-Random })
@@ -47,18 +47,20 @@ if (-not (Test-Path .env)) {
     $env = $env -replace 'ELASTIC_PASSWORD=.*',  ("ELASTIC_PASSWORD=" + (New-Secret 24))
     $env = $env -replace 'KIBANA_PASSWORD=.*',   ("KIBANA_PASSWORD="  + (New-Secret 24))
     $env = $env -replace 'ENCRYPTION_KEY=.*',    ("ENCRYPTION_KEY="   + (New-Secret 40))
-    Set-Content -Path .env -Value $env -NoNewline -Encoding utf8
+    # UTF-8 without BOM - Windows PowerShell's -Encoding utf8 adds a BOM that
+    # docker compose chokes on.
+    [System.IO.File]::WriteAllText("$repo\.env", $env, (New-Object System.Text.UTF8Encoding $false))
     Ok ".env created (kept out of git)"
 } else {
     Ok ".env already present"
 }
 
-# ── 3. bring up the core ─────────────────────────────────────────────────────
+# -- 3. bring up the core -----------------------------------------------------
 Info "pulling images + starting core (first run downloads ~2.5 GB)"
 docker compose --env-file .env -f compose/docker-compose.yml up -d --remove-orphans
 if ($LASTEXITCODE -ne 0) { Die "compose up failed" }
 
-# ── 4. wait for Kibana ───────────────────────────────────────────────────────
+# -- 4. wait for Kibana -------------------------------------------------------
 $kibanaPort = (Select-String -Path .env -Pattern '^KIBANA_PORT=(\d+)').Matches.Groups[1].Value
 if (-not $kibanaPort) { $kibanaPort = 5601 }
 $deadline = (Get-Date).AddMinutes($TimeoutMinutes)
@@ -76,7 +78,7 @@ do {
 
 if ($level -ne 'available') { Die "Kibana did not become available in time. Check: docker compose -f compose/docker-compose.yml logs" }
 
-# ── 5. summary ───────────────────────────────────────────────────────────────
+# -- 5. summary ---------------------------------------------------------------
 $elastic = (Select-String -Path .env -Pattern '^ELASTIC_PASSWORD=(.+)').Matches.Groups[1].Value
 Write-Host ""
 Ok "core is up"

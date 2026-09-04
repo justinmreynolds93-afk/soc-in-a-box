@@ -1,9 +1,9 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Deploy the custom detection rules in elastic/detection-rules/rules/*.json to
     Kibana (create or overwrite). Rules are plain Kibana detection-engine rule
-    bodies — one file per rule, reviewed in git like any other code.
+    bodies - one file per rule, reviewed in git like any other code.
 .PARAMETER Validate
     Only check that every file parses and has the required fields; do not deploy.
 .EXAMPLE

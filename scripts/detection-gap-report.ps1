@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Correlate a scenario run against the alerts it produced and print an
@@ -21,10 +21,10 @@ Set-Location $repo
 if (-not $RunLog) {
     $RunLog = Get-ChildItem attack/scenarios/runs/*.jsonl | Sort-Object LastWriteTime -desc | Select-Object -First 1 -Expand FullName
 }
-if (-not (Test-Path $RunLog)) { throw "no run log found — run attack/scenarios/linux-intrusion.sh first" }
+if (-not (Test-Path $RunLog)) { throw "no run log found - run attack/scenarios/linux-intrusion.sh first" }
 
 # Only the technique list is taken from the run log; the alert window is simply
-# "the last N minutes" (run the report right after a scenario) — avoids all the
+# "the last N minutes" (run the report right after a scenario) - avoids all the
 # timezone ambiguity of parsing the log's timestamps.
 $events = Get-Content $RunLog | ForEach-Object { $_ | ConvertFrom-Json }
 $from = "now-${SinceMinutes}m"
@@ -38,7 +38,7 @@ $h   = @{
     'Content-Type' = 'application/json'
 }
 
-# alerts in the window (any rule type — query / threshold / eql)
+# alerts in the window (any rule type - query / threshold / eql)
 $body = @{
     query = @{ bool = @{ filter = @(
         @{ range = @{ '@timestamp' = @{ gte = $from; lte = $to } } }

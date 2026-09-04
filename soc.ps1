@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     SOC-in-a-Box task runner for Windows. Mirrors the Makefile verbs.
