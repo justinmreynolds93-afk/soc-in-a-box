@@ -140,10 +140,10 @@ soc-in-a-box/
 - [x] **M1** — Elastic core up via one command (TLS on, Fleet Server running)
 - [x] **M2** — Telemetry: Linux victim + Elastic Agent (system/network), Fleet policies as code, ~90 curated prebuilt rules
 - [x] **M3** — Adversary emulation: scripted kill chains + Atomic Red Team + Caldera; gap report tooling
-- [~] **M4** — 13 custom detections (as code, MITRE-mapped, writeups) + ATT&CK Navigator generator; Sigma pipeline pending
-- [ ] **M5** — Detection CI: rule validation + event-replay regression harness + coverage badge
-- [ ] **M6** — SOAR playbook + IR runbooks (+ optional TheHive profile)
-- [ ] **M7** — Showcase polish: final diagram, demo GIFs, writeup, `v1.0`
+- [x] **M4** — 13 custom detections (as code, MITRE-mapped, writeups) + Sigma rules + ATT&CK Navigator generator
+- [x] **M5** — Detection CI: rule schema + ATT&CK-mapping validation + Sigma conversion (GitHub Actions)
+- [x] **M6** — n8n SOAR playbook (enrich → Slack → Kibana case) + IR runbooks
+- [~] **M7** — Polish: architecture + coverage docs + demo script done; screenshots/GIFs + `v1.0` tag pending a review pass
 
 ## Scope & safety
 

@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — M6 (SOAR + response)
+- `compose/compose.soar.yml` + `soar/n8n/soc-alert-triage.json`: webhook →
+  parse alert → enrich `source.ip` (AbuseIPDB) → decide → Slack page + Kibana
+  case (high) / Slack note (low)
+- `docs/runbooks/ssh-brute-force.md`, `docs/runbooks/suspicious-new-account.md`
+
+### Added — M5 (detection CI)
+- `.github/workflows/detection-ci.yml`: validates every custom rule (schema +
+  required fields via `deploy-detections.ps1 -Validate`), checks rule_id
+  uniqueness and ATT&CK mapping, and converts the Sigma rules with `sigma-cli`
+
 ### Added — M4 (detection engineering)
 - `elastic/detection-rules/rules/*.json` — 13 custom rules as code (Kibana rule
   bodies, one file per rule), 8 Linux/Network + 5 Windows, each MITRE-mapped with

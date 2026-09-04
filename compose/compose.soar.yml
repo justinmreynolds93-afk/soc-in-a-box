@@ -1,0 +1,39 @@
+name: soc-in-a-box
+
+# ─────────────────────────────────────────────────────────────────────────────
+# soar overlay — automated triage. Kibana sends detection alerts to the n8n
+# webhook; the workflow enriches indicators, posts to Slack, and opens a Kibana
+# case. Import soar/n8n/soc-alert-triage.json after first boot.
+#
+#   make soar   |   .\soc.ps1 soar        ->  http://localhost:5678
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  n8n:
+    image: n8nio/n8n:1.70.0
+    hostname: n8n
+    depends_on:
+      kibana:
+        condition: service_healthy
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_SECURE_COOKIE=false
+      - N8N_RUNNERS_ENABLED=true
+      - GENERIC_TIMEZONE=UTC
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      # indicator-enrichment API keys (all optional; blank = step skipped)
+      - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY}
+      - VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}
+      - GREYNOISE_API_KEY=${GREYNOISE_API_KEY}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      # Kibana (self-signed) — n8n calls the case API
+      - KIBANA_URL=https://kibana:5601
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+    volumes:
+      - n8ndata:/home/node/.n8n
+    mem_limit: 536870912   # 512 MB
+
+volumes:
+  n8ndata:

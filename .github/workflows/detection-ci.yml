@@ -1,0 +1,52 @@
+name: detection-ci
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "elastic/detection-rules/**"
+      - "elastic/sigma/**"
+      - "scripts/deploy-detections.ps1"
+      - ".github/workflows/detection-ci.yml"
+  pull_request:
+    paths:
+      - "elastic/detection-rules/**"
+      - "elastic/sigma/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate every custom rule (schema + required fields)
+        shell: pwsh
+        run: ./scripts/deploy-detections.ps1 -Validate
+      - name: Check rule_id uniqueness and ATT&CK mapping
+        shell: pwsh
+        run: |
+          $rules = Get-ChildItem elastic/detection-rules/rules/*.json | ForEach-Object {
+            Get-Content $_.FullName -Raw | ConvertFrom-Json
+          }
+          $dupes = $rules | Group-Object rule_id | Where-Object Count -gt 1
+          if ($dupes) { throw "duplicate rule_id: $($dupes.Name -join ', ')" }
+          $noThreat = $rules | Where-Object { -not $_.threat -or -not $_.threat[0].technique }
+          if ($noThreat) { throw "rule(s) missing ATT&CK technique mapping: $($noThreat.rule_id -join ', ')" }
+          Write-Host "$($rules.Count) rules, all unique, all mapped to ATT&CK"
+
+  sigma-convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "sigma-cli>=1.0" "pysigma-backend-elasticsearch>=1.1"
+      - name: Convert Sigma rules to Elastic query DSL
+        run: |
+          shopt -s nullglob
+          rules=(elastic/sigma/rules/*.yml elastic/sigma/rules/*.yaml)
+          if [ ${#rules[@]} -eq 0 ]; then echo "no sigma rules yet"; exit 0; fi
+          sigma convert -t lucene -p ecs_windows -p ecs_zeek_beats "${rules[@]}"
