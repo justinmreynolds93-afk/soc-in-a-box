@@ -5,7 +5,7 @@
   "type": "query",
   "language": "kuery",
   "index": ["logs-windows.sysmon_operational-*", "logs-system.security-*", "logs-windows.forwarded-*", "winlogbeat-*"],
-  "query": "event.code:(\"1102\" or \"104\") or (event.provider:\"Microsoft-Windows-Sysmon\" and event.code:\"1\" and process.name:(\"wevtutil.exe\" or \"powershell.exe\" or \"pwsh.exe\") and process.command_line:(*\"cl \"* or *\"clear-log\"* or *Clear-EventLog* or *\"Remove-EventLog\"* or *\"Limit-EventLog\"*))",
+  "query": "event.code: (\"1102\" or \"104\") or (process.name: \"wevtutil.exe\" and process.args: (\"cl\" or \"clear-log\")) or (process.name: (\"powershell.exe\" or \"pwsh.exe\") and process.command_line: (*Clear-EventLog* or *Remove-EventLog* or *Limit-EventLog*))",
   "severity": "high",
   "risk_score": 73,
   "from": "now-9m",

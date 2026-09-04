@@ -5,7 +5,7 @@
   "type": "query",
   "language": "kuery",
   "index": ["logs-windows.sysmon_operational-*", "winlogbeat-*", "logs-windows.forwarded-*"],
-  "query": "(event.provider:\"Microsoft-Windows-Sysmon\" and event.code:\"1\" and process.command_line:(*DisableRealtimeMonitoring* or *\"Add-MpPreference\"* or *\"-ExclusionPath\"* or *\"-ExclusionProcess\"* or *\"sc \"*stop*WinDefend* or *\"sc \"*config*WinDefend*)) or (event.provider:\"Microsoft-Windows-Sysmon\" and event.code:(\"12\" or \"13\") and registry.path:(*\\\\Windows Defender\\\\* and (*DisableAntiSpyware* or *DisableRealtimeMonitoring* or *\\\\Exclusions\\\\*)))",
+  "query": "(process.command_line: (*DisableRealtimeMonitoring* or *Add-MpPreference* or *Set-MpPreference* or *-ExclusionPath* or *-ExclusionProcess* or *-ExclusionExtension*)) or (process.name: \"sc.exe\" and process.args: (\"WinDefend\" or \"windefend\") and process.args: (\"stop\" or \"config\" or \"delete\" or \"disabled\")) or (event.action: \"RegistryEvent (Value Set)\" and registry.path: *Defender* and registry.path: (*DisableAntiSpyware* or *DisableRealtimeMonitoring* or *DisableBehaviorMonitoring* or *Exclusions*))",
   "severity": "high",
   "risk_score": 73,
   "from": "now-9m",

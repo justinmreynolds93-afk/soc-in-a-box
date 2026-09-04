@@ -5,7 +5,7 @@
   "type": "query",
   "language": "kuery",
   "index": ["logs-windows.sysmon_operational-*", "logs-system.security-*", "winlogbeat-*", "logs-windows.powershell*"],
-  "query": "(event.provider:\"Microsoft-Windows-Sysmon\" and event.code:\"1\" and process.name:(\"powershell.exe\" or \"pwsh.exe\") and process.command_line:(*-enc* or *-EncodedCommand* or *FromBase64String* or *IEX* or *Invoke-Expression* or *Net.WebClient* or *DownloadString* or *Invoke-WebRequest*)) or (event.code:\"4104\" and powershell.file.script_block_text:(*FromBase64String* or *Net.WebClient* or *DownloadString* or *IEX(* or *iex(*))",
+  "query": "(process.name: (\"powershell.exe\" or \"pwsh.exe\") and process.command_line: (*-enc* or *-EncodedCommand* or *FromBase64String* or *Invoke-Expression* or *Net.WebClient* or *DownloadString* or *DownloadFile* or *IEX*)) or (event.code: \"4104\" and powershell.file.script_block_text: (*FromBase64String* or *Net.WebClient* or *DownloadString* or *IEX* or *Invoke-Expression*))",
   "severity": "high",
   "risk_score": 68,
   "from": "now-9m",

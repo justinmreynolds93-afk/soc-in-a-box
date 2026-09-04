@@ -5,7 +5,7 @@
   "type": "query",
   "language": "kuery",
   "index": ["logs-windows.sysmon_operational-*", "logs-system.security-*", "winlogbeat-*"],
-  "query": "event.code:\"4720\" or (event.code:\"4732\" and group.name:(\"Administrators\" or \"Remote Desktop Users\" or \"Backup Operators\")) or (event.provider:\"Microsoft-Windows-Sysmon\" and event.code:\"1\" and process.name:(\"net.exe\" or \"net1.exe\") and process.command_line:(*\"user \"* and *\"/add\"* or *\"localgroup administrators\"*))",
+  "query": "event.code: \"4720\" or (event.code: \"4732\" and (group.name: (\"Administrators\" or \"Remote Desktop Users\" or \"Backup Operators\") or winlog.event_data.TargetUserName: (\"Administrators\" or \"Remote Desktop Users\" or \"Backup Operators\"))) or (process.name: (\"net.exe\" or \"net1.exe\") and process.args: \"/add\" and process.args: (\"user\" or \"localgroup\"))",
   "severity": "medium",
   "risk_score": 54,
   "from": "now-9m",
