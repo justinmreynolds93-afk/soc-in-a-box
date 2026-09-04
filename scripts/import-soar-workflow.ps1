@@ -27,10 +27,21 @@ Set-Content -Path $tmp -Value $arr -Encoding utf8
 docker cp $tmp "${container}:/tmp/soc-wf.json" | Out-Null
 Remove-Item $tmp
 
-docker exec $container n8n import:workflow --input=/tmp/soc-wf.json 2>&1 |
-    Where-Object { $_ -notmatch 'Permissions 0644|User settings loaded' }
+$noise = 'Permissions 0644|User settings loaded|will not take effect|Please restart'
+docker exec $container n8n import:workflow --input=/tmp/soc-wf.json 2>&1 | Where-Object { $_ -notmatch $noise }
+docker exec $container n8n update:workflow --id=soc-alert-triage --active=true 2>&1 | Where-Object { $_ -notmatch $noise }
+
+# webhook registration only happens on (re)start
+Write-Host "[*] restarting n8n so the webhook registers"
+docker restart $container | Out-Null
+for ($i = 0; $i -lt 24; $i++) {
+    try { if ((Invoke-WebRequest 'http://localhost:5678/healthz' -TimeoutSec 3 -UseBasicParsing).StatusCode -eq 200) { break } } catch { }
+    Start-Sleep 5
+}
 
 Write-Host ""
-Write-Host "Open http://localhost:5678 -> Workflows -> 'SOC Alert Triage'."
-Write-Host "Add a Basic Auth credential (elastic / ELASTIC_PASSWORD) to the 'Kibana: open case' node,"
-Write-Host "then Activate. Webhook: http://n8n:5678/webhook/soc-alert (from a Kibana webhook connector)."
+Write-Host "[+] 'SOC Alert Triage' imported and active."
+Write-Host "    It polls Kibana every 5 min for open SOC-in-a-Box alerts, enriches"
+Write-Host "    source.ip, opens a Kibana case for high severity, and acks the alert."
+Write-Host "    Set SLACK_WEBHOOK_URL / ABUSEIPDB_API_KEY in .env to light up those steps."
+Write-Host "    Run once now:  docker exec $container n8n execute --id=soc-alert-triage"

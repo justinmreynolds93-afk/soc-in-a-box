@@ -26,13 +26,18 @@ services:
       - N8N_USER_MANAGEMENT_DISABLED=true   # lab: skip the owner-setup wizard
       - N8N_PUBLIC_API_DISABLED=false
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
+      - N8N_LOG_LEVEL=info
       # indicator-enrichment API keys (all optional; blank = step skipped)
       - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY}
       - VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}
       - GREYNOISE_API_KEY=${GREYNOISE_API_KEY}
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
-      # Kibana (self-signed) — n8n calls the case API
+      # Kibana (self-signed) — n8n opens cases via the API; auth header is built
+      # inside the workflow from ELASTIC_PASSWORD, so no n8n credential is needed
       - KIBANA_URL=https://kibana:5601
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - NODE_TLS_REJECT_UNAUTHORIZED=0
     volumes:
       - n8ndata:/home/node/.n8n

@@ -5,6 +5,14 @@
   "settings": { "executionOrder": "v1" },
   "nodes": [
     {
+      "parameters": { "rule": { "interval": [ { "field": "minutes", "minutesInterval": 5 } ] } },
+      "id": "a1000000-0000-0000-0000-000000000010",
+      "name": "Every 5 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-220, 0]
+    },
+    {
       "parameters": {
         "httpMethod": "POST",
         "path": "soc-alert",
@@ -12,18 +20,38 @@
         "options": {}
       },
       "id": "a1000000-0000-0000-0000-000000000001",
-      "name": "Kibana Alert Webhook",
+      "name": "Manual test webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 0],
+      "position": [-220, 200],
       "webhookId": "soc-alert"
     },
     {
       "parameters": {
-        "jsCode": "// Normalise a Kibana detection alert into a flat triage object.\nconst a = $input.first().json.body ?? $input.first().json;\nconst g = (o, p) => p.split('.').reduce((x, k) => (x == null ? x : x[k]), o);\nconst first = (v) => Array.isArray(v) ? v[0] : v;\nreturn [{ json: {\n  rule:      a['kibana.alert.rule.name'] || g(a, 'kibana.alert.rule.name') || a.rule?.name,\n  severity:  a['kibana.alert.severity']  || a.rule?.severity || 'low',\n  risk:      Number(a['kibana.alert.risk_score'] || a.rule?.risk_score || 0),\n  host:      first(a['host.name'] || g(a, 'host.name')) || 'unknown',\n  user:      first(a['user.name'] || g(a, 'user.name')) || null,\n  sourceIp:  first(a['source.ip'] || g(a, 'source.ip')) || null,\n  destIp:    first(a['destination.ip'] || g(a, 'destination.ip')) || null,\n  hashes:    a['file.hash.sha256'] || [],\n  timestamp: a['@timestamp'] || new Date().toISOString(),\n  raw:       a\n}}];"
+        "method": "POST",
+        "url": "={{ ($env.KIBANA_URL || 'https://kibana:5601') }}/api/detection_engine/signals/search",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          { "name": "kbn-xsrf", "value": "n8n" },
+          { "name": "Authorization", "value": "={{ 'Basic ' + Buffer.from('elastic:' + ($env.ELASTIC_PASSWORD || '')).toString('base64') }}" }
+        ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"size\": 50,\n  \"query\": { \"bool\": { \"filter\": [\n    { \"range\": { \"@timestamp\": { \"gte\": \"now-7m\" } } },\n    { \"term\": { \"kibana.alert.workflow_status\": \"open\" } },\n    { \"wildcard\": { \"kibana.alert.rule.tags\": \"SOC-in-a-Box\" } }\n  ] } },\n  \"sort\": [ { \"@timestamp\": \"asc\" } ]\n}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "a1000000-0000-0000-0000-000000000011",
+      "name": "Query open alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// One n8n item per alert hit; nothing downstream runs when there are none.\n// Handles both the schedule path (HTTP node -> $json.hits) and the manual\n// webhook path (payload nested under $json.body).\nconst resp = $input.first().json?.body ?? $input.first().json;\nconst hits = resp?.hits?.hits ?? [];\nreturn hits.map(hit => {\n  const s = hit._source || {};\n  const first = v => Array.isArray(v) ? v[0] : v;\n  return { json: {\n    alertId:   hit._id,\n    alertIndex: hit._index,\n    rule:      s['kibana.alert.rule.name'] || 'unknown rule',\n    severity:  s['kibana.alert.severity'] || 'low',\n    risk:      Number(s['kibana.alert.risk_score'] || 0),\n    host:      first(s['host.name']) || 'unknown',\n    user:      first(s['user.name']) || null,\n    sourceIp:  first(s['source.ip']) || null,\n    destIp:    first(s['destination.ip']) || null,\n    hashes:    s['file.hash.sha256'] || [],\n    timestamp: s['@timestamp'] || new Date().toISOString(),\n    threat:    s['kibana.alert.rule.threat'] || []\n  }};\n});"
       },
       "id": "a1000000-0000-0000-0000-000000000002",
-      "name": "Parse Alert",
+      "name": "Split alerts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [220, 0]
@@ -48,7 +76,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const alert = $('Parse Alert').first().json;\nconst abuse = $input.first().json?.data ?? {};\nconst score = Number(abuse.abuseConfidenceScore || 0);\nconst sevRank = { low: 1, medium: 2, high: 3, critical: 4 }[alert.severity] || 1;\nconst escalate = sevRank >= 3 || score >= 50 || alert.risk >= 70;\nreturn [{ json: { ...alert, abuseScore: score, abuseCountry: abuse.countryCode || null, escalate } }];"
+        "jsCode": "const alert = $('Split alerts').item.json;\nconst abuse = $input.first().json?.data ?? {};\nconst score = Number(abuse.abuseConfidenceScore || 0);\nconst sevRank = { low: 1, medium: 2, high: 3, critical: 4 }[alert.severity] || 1;\nconst escalate = sevRank >= 3 || score >= 50 || alert.risk >= 70;\nconst kibanaAuth = 'Basic ' + Buffer.from('elastic:' + ($env.ELASTIC_PASSWORD || '')).toString('base64');\nconst kibanaUrl = $env.KIBANA_URL || 'https://kibana:5601';\nreturn [{ json: { ...alert, abuseScore: score, abuseCountry: abuse.countryCode || null, escalate, kibanaAuth, kibanaUrl } }];"
       },
       "id": "a1000000-0000-0000-0000-000000000004",
       "name": "Decide",
@@ -75,42 +103,43 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "url": "={{ $env.SLACK_WEBHOOK_URL || 'https://example.invalid/skip' }}",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"text\": \":rotating_light: *{{ $json.rule }}* on `{{ $json.host }}`\\nseverity `{{ $json.severity }}` · risk {{ $json.risk }} · source `{{ $json.sourceIp }}` (AbuseIPDB {{ $json.abuseScore }})\\nuser `{{ $json.user }}` · {{ $json.timestamp }}\"\n}",
+        "jsonBody": "={\n  \"text\": \":rotating_light: *{{ $json.rule }}* on `{{ $json.host }}`\\nseverity `{{ $json.severity }}` · risk {{ $json.risk }} · source `{{ $json.sourceIp }}` (AbuseIPDB {{ $json.abuseScore }} {{ $json.abuseCountry }})\\nuser `{{ $json.user }}` · {{ $json.timestamp }}\"\n}",
         "options": { "response": { "response": { "neverError": true } } }
       },
       "id": "a1000000-0000-0000-0000-000000000006",
       "name": "Slack: page",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1120, -120],
+      "position": [1120, -140],
       "continueOnFail": true
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.KIBANA_URL }}/api/cases",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpBasicAuth",
+        "url": "={{ $json.kibanaUrl }}/api/cases",
         "sendHeaders": true,
-        "headerParameters": { "parameters": [ { "name": "kbn-xsrf", "value": "n8n" } ] },
+        "headerParameters": { "parameters": [
+          { "name": "kbn-xsrf", "value": "n8n" },
+          { "name": "Authorization", "value": "={{ $json.kibanaAuth }}" }
+        ] },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"title\": \"{{ $json.rule }} — {{ $json.host }}\",\n  \"description\": \"Auto-opened by n8n. source.ip {{ $json.sourceIp }} (AbuseIPDB {{ $json.abuseScore }}, {{ $json.abuseCountry }}). user {{ $json.user }}. risk {{ $json.risk }}.\",\n  \"tags\": [\"soc-in-a-box\", \"auto\"],\n  \"severity\": \"{{ $json.severity == 'critical' ? 'critical' : ($json.severity == 'high' ? 'high' : 'medium') }}\",\n  \"connector\": { \"id\": \"none\", \"name\": \"none\", \"type\": \".none\", \"fields\": null },\n  \"settings\": { \"syncAlerts\": false },\n  \"owner\": \"securitySolution\"\n}",
+        "jsonBody": "={\n  \"title\": \"{{ $json.rule }} — {{ $json.host }}\",\n  \"description\": \"Auto-opened by n8n. source.ip {{ $json.sourceIp }} (AbuseIPDB {{ $json.abuseScore }}, {{ $json.abuseCountry }}). user {{ $json.user }}. risk {{ $json.risk }}. alert {{ $json.alertId }}.\",\n  \"tags\": [\"soc-in-a-box\", \"auto\"],\n  \"severity\": \"{{ $json.severity === 'critical' ? 'critical' : ($json.severity === 'high' ? 'high' : 'medium') }}\",\n  \"assignees\": [],\n  \"connector\": { \"id\": \"none\", \"name\": \"none\", \"type\": \".none\", \"fields\": null },\n  \"settings\": { \"syncAlerts\": false },\n  \"owner\": \"securitySolution\"\n}",
         "options": { "response": { "response": { "neverError": true } } }
       },
       "id": "a1000000-0000-0000-0000-000000000007",
       "name": "Kibana: open case",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1120, 40]
+      "position": [1120, 20]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "url": "={{ $env.SLACK_WEBHOOK_URL || 'https://example.invalid/skip' }}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"text\": \":information_source: {{ $json.rule }} on `{{ $json.host }}` (severity {{ $json.severity }}) — logged, no page.\"\n}",
@@ -122,18 +151,42 @@
       "typeVersion": 4.2,
       "position": [1120, 200],
       "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Decide').item.json.kibanaUrl }}/api/detection_engine/signals/status",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          { "name": "kbn-xsrf", "value": "n8n" },
+          { "name": "Authorization", "value": "={{ $('Decide').item.json.kibanaAuth }}" }
+        ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"signal_ids\": [\"{{ $('Decide').item.json.alertId }}\"],\n  \"status\": \"acknowledged\"\n}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "a1000000-0000-0000-0000-000000000009",
+      "name": "Ack alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1360, 20]
     }
   ],
   "connections": {
-    "Kibana Alert Webhook": { "main": [[{ "node": "Parse Alert", "type": "main", "index": 0 }]] },
-    "Parse Alert": { "main": [[{ "node": "Enrich source.ip (AbuseIPDB)", "type": "main", "index": 0 }]] },
+    "Every 5 minutes":      { "main": [[{ "node": "Query open alerts", "type": "main", "index": 0 }]] },
+    "Query open alerts":    { "main": [[{ "node": "Split alerts", "type": "main", "index": 0 }]] },
+    "Manual test webhook":  { "main": [[{ "node": "Split alerts", "type": "main", "index": 0 }]] },
+    "Split alerts":         { "main": [[{ "node": "Enrich source.ip (AbuseIPDB)", "type": "main", "index": 0 }]] },
     "Enrich source.ip (AbuseIPDB)": { "main": [[{ "node": "Decide", "type": "main", "index": 0 }]] },
-    "Decide": { "main": [[{ "node": "Escalate?", "type": "main", "index": 0 }]] },
+    "Decide":               { "main": [[{ "node": "Escalate?", "type": "main", "index": 0 }]] },
     "Escalate?": {
       "main": [
-        [{ "node": "Slack: page", "type": "main", "index": 0 }, { "node": "Kibana: open case", "type": "main", "index": 0 }],
-        [{ "node": "Slack: note", "type": "main", "index": 0 }]
+        [ { "node": "Slack: page", "type": "main", "index": 0 }, { "node": "Kibana: open case", "type": "main", "index": 0 } ],
+        [ { "node": "Slack: note", "type": "main", "index": 0 } ]
       ]
-    }
+    },
+    "Kibana: open case":    { "main": [[{ "node": "Ack alert", "type": "main", "index": 0 }]] },
+    "Slack: note":          { "main": [[{ "node": "Ack alert", "type": "main", "index": 0 }]] }
   }
 }

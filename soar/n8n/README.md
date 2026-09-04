@@ -1,39 +1,41 @@
 # soar/n8n/
 
-## Import the workflow
+`make soar` (or `.\soc.ps1 soar`) starts n8n, imports `soc-alert-triage.json`,
+activates it, and restarts n8n so the schedule registers. n8n runs in single-user
+mode — no setup wizard.
 
-`make soar` (or `.\soc.ps1 soar`) starts n8n **and** imports
-`soc-alert-triage.json` via `scripts/import-soar-workflow.ps1`. The lab runs n8n
-in single-user mode (`N8N_USER_MANAGEMENT_DISABLED=true`) so there's no setup
-wizard.
+## How it works
 
-Then, once, in the UI (`http://localhost:5678`):
-
-1. Add a **Basic Auth** credential (`elastic` / your `ELASTIC_PASSWORD`) and bind
-   it to the *Kibana: open case* node.
-2. **Activate** the workflow.
-
-API keys and the Slack webhook are read from the environment — set them in `.env`
-before `make soar` (see `.env.example`); blank keys just skip that step. The
-production webhook is `http://n8n:5678/webhook/soc-alert` (from inside the lab).
-
-## Wire Kibana to it
-
-Kibana → Stack Management → **Connectors** → create a *Webhook* connector to
-`http://n8n:5678/webhook/soc-alert` (method POST, no auth). Then either:
-
-- add a **rule action** to the custom rules (bulk edit → add action → the webhook
-  connector, on *Active* with a per-alert summary body), or
-- one global action via `xpack.actions` — see `docs/runbooks/`.
-
-## Flow
+Elastic **Basic** has no detection-rule connector actions (`.webhook` needs
+Gold+), so the workflow **polls** instead:
 
 ```
-webhook ─► Parse Alert ─► Enrich source.ip (AbuseIPDB) ─► Decide ─► Escalate?
-                                                                    ├─ yes ─► Slack page + Kibana case
-                                                                    └─ no  ─► Slack note
+Every 5 min ─► query Kibana for open SOC-in-a-Box alerts (last 7 min)
+           ─► one item per alert
+           ─► enrich source.ip (AbuseIPDB)
+           ─► decide: escalate if severity ≥ high, AbuseIPDB ≥ 50, or risk ≥ 70
+                ├─ escalate ─► Slack page + open a Kibana case
+                └─ else     ─► Slack note
+           ─► set the alert's workflow status to "acknowledged"  (dedupe)
 ```
 
-`Decide` escalates when severity ≥ high, AbuseIPDB score ≥ 50, or risk ≥ 70.
-Extend `Parse Alert` / `Enrich` with VirusTotal (hashes) and GreyNoise (IP noise)
-the same way — the keys are already passed through.
+A second trigger — the `soc-alert` webhook — takes a Kibana
+`signals/search` response body for manual testing.
+
+- **Kibana auth** is built inside the workflow from `ELASTIC_PASSWORD` (passed to
+  the n8n container) — no n8n credential to configure.
+- **AbuseIPDB / Slack** are optional: blank `ABUSEIPDB_API_KEY` /
+  `SLACK_WEBHOOK_URL` in `.env` just make those nodes no-ops.
+
+## Verify
+
+```powershell
+# feed the current open alerts straight to the workflow:
+$h = @{ Authorization = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("elastic:$(( Select-String .env -Pattern '^ELASTIC_PASSWORD=(.+)').Matches.Groups[1].Value)")) }
+$q = '{"size":10,"query":{"bool":{"filter":[{"range":{"@timestamp":{"gte":"now-1h"}}},{"term":{"kibana.alert.workflow_status":"open"}},{"wildcard":{"kibana.alert.rule.tags":"SOC-in-a-Box"}}]}}}'
+$a = Invoke-RestMethod -Method Post https://localhost:5601/api/detection_engine/signals/search -Headers ($h + @{'kbn-xsrf'='1';'Content-Type'='application/json'}) -Body $q -SkipCertificateCheck
+Invoke-RestMethod -Method Post http://localhost:5678/webhook/soc-alert -Body ($a | ConvertTo-Json -Depth 15) -ContentType application/json
+```
+
+High-severity alerts show up as cases in Kibana → Security → Cases, tagged
+`soc-in-a-box`. Executions are visible at `http://localhost:5678`.

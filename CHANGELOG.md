@@ -6,9 +6,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — M6 (SOAR + response)
-- `compose/compose.soar.yml` + `soar/n8n/soc-alert-triage.json`: webhook →
-  parse alert → enrich `source.ip` (AbuseIPDB) → decide → Slack page + Kibana
-  case (high) / Slack note (low)
+- `compose/compose.soar.yml` + `soar/n8n/soc-alert-triage.json`: n8n **polls**
+  Kibana for open SOC-in-a-Box alerts every 5 min (Elastic Basic has no rule
+  connector actions), enriches `source.ip` via AbuseIPDB, opens a Kibana case for
+  high severity + Slack page / note, then acks the alert. Kibana auth is built
+  from `ELASTIC_PASSWORD` in the workflow — no n8n credential to wire.
+- `scripts/import-soar-workflow.ps1`: import + activate + restart; wired into
+  `make soar` / `soc.ps1 soar`
+- **Verified end-to-end**: a synthetic high-severity alert produced a real Kibana
+  case ("Successful SSH Login After Brute Force — linux-victim", high, open)
 - `docs/runbooks/ssh-brute-force.md`, `docs/runbooks/suspicious-new-account.md`
 
 ### Added — M5 (detection CI)
