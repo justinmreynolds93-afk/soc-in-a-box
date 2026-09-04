@@ -1,10 +1,14 @@
-# markdownlint config — lenient, doc-friendly
+# markdownlint config — enforce structure/content, not whitespace pedantry.
 config:
   MD013: false   # line length
-  MD033: false   # inline HTML (badges, <br/> in mermaid, <!-- comments -->)
-  MD041: false   # first line in file must be a top-level heading
+  MD022: false   # blanks around headings
   MD024:
-    siblings_only: true   # allow repeated headings under different parents
+    siblings_only: true   # repeated headings ok under different parents
+  MD031: false   # blanks around fenced code blocks
+  MD032: false   # blanks around lists
+  MD033: false   # inline HTML (badges, <br/> in mermaid, comments)
+  MD040: false   # fenced code language (many are shell transcripts / trees)
+  MD041: false   # first line must be a top-level heading
 globs:
   - "**/*.md"
 ignores:
